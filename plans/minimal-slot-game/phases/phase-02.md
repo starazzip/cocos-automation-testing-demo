@@ -2,7 +2,7 @@
 
 ## 狀態
 
-已規劃。
+已完成。
 
 ## 目標
 
@@ -82,9 +82,45 @@
 
 修正失敗的 transport tests；若 business rules 漂進 transport，簡化 handler logic 並移回 app/domain。
 
+修正紀錄：
+
+- `settings.request` 改為只回傳 UI-safe 設定：`symbols`、`betOptions`、`defaultBet`、`creditIn`、`localPlayer`。
+- `settings.request` 不再回傳 `reels` 與 `payTable`，避免洩漏 RNG internals 或 payout implementation details。
+- 新增 transport tests 覆蓋 `wallet.balance.request`、`wallet.credit_out.request`、`settings.request` 與 missing `id` structured error。
+
 ## 收尾
 
 記錄 message examples 與 local run command。
+
+完成紀錄：
+
+- 新增 `server/internal/transport/ws`，包含 WebSocket envelope、router、DTO、structured error response 與 test-mode force-board handler。
+- `cmd/server` 現在啟動 HTTP server，提供 `/ws` WebSocket endpoint 與 `/healthz`。
+- 新增 `SLOT_ADDR` 設定 listen address，預設 `:8080`。
+- 新增 `SLOT_TEST_MODE`，只有設定為 `1`、`true`、`yes` 或 `on` 時才允許 `test.force_board.request`。
+- 新增 `nhooyr.io/websocket` 作為最小 WebSocket dependency。
+- WebSocket origin 限制為本機來源：`localhost:*` 與 `127.0.0.1:*`。
+
+Message examples：
+
+```json
+{"id":"1","type":"wallet.balance.request","payload":{}}
+{"id":"2","type":"wallet.credit_in.request","payload":{"amount":100}}
+{"id":"3","type":"wallet.credit_out.request","payload":{}}
+{"id":"4","type":"spin.request","payload":{"bet":1}}
+{"id":"5","type":"settings.request","payload":{}}
+{"id":"6","type":"test.force_board.request","payload":{"board":[["A","A","A"],["K","Q","K"],["7","7","7"]]}}
+```
+
+Local run：
+
+```powershell
+cd server
+$env:SLOT_ADDR="127.0.0.1:8080"
+$env:SLOT_DB_PATH="slot.db"
+$env:SLOT_TEST_MODE="1"
+go run ./cmd/server
+```
 
 ## 驗證
 
@@ -92,9 +128,19 @@
 - 本機 WebSocket smoke request：credit-in 與 spin
 - Test mode WebSocket smoke request：force board、credit-in、spin、驗證 board/win/balance
 
+已執行：
+
+- `go test ./...`，通過。
+- 本機 WebSocket smoke request 通過：`test.force_board.request`、`wallet.credit_in.request`、`spin.request`。
+- Smoke 驗證固定盤面 `[["A","A","A"],["K","Q","K"],["7","7","7"]]`，回傳 `win=30`、`balance=129`。
+- 修正後再次執行 `go test ./...`，通過。
+- 修正後再次執行本機 WebSocket smoke request，通過；並驗證 `settings.result` 不包含 `reels` 或 `payTable`。
+
 ## 完成標準
 
 - WebSocket API 涵蓋 MVP 必要操作。
 - Structured errors 可正常運作。
 - Backend 所有 Go tests 仍通過。
 - Test mode 可強制下一次 spin 盤面；一般模式不可使用該能力。
+
+結果：已達成。
