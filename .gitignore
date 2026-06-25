@@ -27,3 +27,4 @@ node_modules/
 .serena/
 settings/mcp-server.json
 settings/tool-manager.json
+server/*.db

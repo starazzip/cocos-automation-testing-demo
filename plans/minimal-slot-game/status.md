@@ -6,19 +6,19 @@ plans/minimal-slot-game
 
 ## Stage
 
-planning
+review
 
 ## Current Phase
 
-not started
+1
 
 ## Last Action
 
-/qdd-plan
+/qdd-review 1
 
 ## Next Action
 
-/qdd-phase {N}
+/qdd-phase 2
 
 ## Blockers
 
@@ -35,4 +35,4 @@ not started
 
 ## Updated At
 
-2026-06-25T10:01:45.6641765+08:00
+2026-06-25T10:43:45.5039579+08:00

@@ -2,7 +2,7 @@
 
 ## 狀態
 
-已規劃。
+已完成。
 
 ## 目標
 
@@ -76,14 +76,38 @@
 
 在進入 phase 02 前，修正失敗的 Go tests 與 schema 問題。
 
+修正紀錄：
+
+- 修正 spin 交易紀錄的 `balance_after`：`spin_bet` 記錄扣注後餘額，`spin_win` 記錄派彩後最終餘額。
+- 將一般 spin 的 RNG 盤面產生納入 `Service` mutex 保護，避免未來 WebSocket 併發 spin 時共用 `math/rand.Rand` 產生 data race。
+- 新增 SQLite 測試，驗證 credit-in、spin-bet、spin-win 三筆交易流水的餘額變化。
+- 新增併發 spin 測試，覆蓋多個 goroutine 同時呼叫 `Spin` 的路徑。
+
 ## 收尾
 
 在 phase verification notes 記錄後端 commands 與預設設定。
+
+完成紀錄：
+
+- 新增 `server/` Go module。
+- 新增 `internal/domain`，包含預設設定、3x3 board、reels、三條橫線 payout evaluation、bet validation 與 board validation。
+- 新增 `internal/app`，包含 balance、credit-in、credit-out、spin use cases，以及測試用 `ForceNextBoard`。
+- 新增 `internal/store/sqlite`，包含 SQLite schema、default seed、player balance、transactions、spin history 與 game settings persistence。
+- 新增 `cmd/server`，可用 `SLOT_DB_PATH` 指定 SQLite path 並初始化預設資料。
+- 強制盤面在 app/domain 可測邊界提供，不由正式 spin request payload 決定。
 
 ## 驗證
 
 - 在 `server/` 執行 `go test ./...`
 - 若有 backend init command，手動執行一次
+
+已執行：
+
+- `go test ./...`，通過。
+- `SLOT_DB_PATH=<temp-db> go run ./cmd/server`，成功建立 SQLite 檔案並初始化 `local-player` balance `0`。
+- 修正後再次執行 `go test ./...`，通過。
+- 修正後再次執行 `SLOT_DB_PATH=<temp-db> go run ./cmd/server`，通過。
+- 嘗試執行 `go test -race ./...`，目前 Windows 環境缺少 CGO C compiler：`gcc` 不在 `%PATH%`，因此 race detector 未能執行。
 
 ## 完成標準
 
@@ -91,3 +115,5 @@
 - SQLite file 可建立並包含預設設定。
 - Domain/app code 不依賴 WebSocket transport。
 - 測試可設定固定盤面，且正式 spin path 不暴露任意結果控制。
+
+結果：已達成。
