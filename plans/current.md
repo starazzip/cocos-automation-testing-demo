@@ -1,0 +1,1 @@
+plans/minimal-slot-game
