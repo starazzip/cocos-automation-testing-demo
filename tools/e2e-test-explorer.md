@@ -22,6 +22,7 @@ npm install
 
 - `Cocos E2E: credit-in and credit-out`
 - `Cocos E2E: forced board spin payout`
+- `Cocos E2E: frontend-only deterministic spin`
 
 可以直接點選單條測試執行。
 
@@ -40,9 +41,11 @@ npm run test:e2e
 
 ## 運作方式
 
-`tests/e2e/cocos-slot.spec.mjs` 只負責註冊 Playwright 測試與 sample backend adapter。共用 orchestration 位於 `tools/e2e/runner-core.mjs`：
+`tests/e2e/cocos-slot.spec.mjs` 只負責註冊 Playwright 測試與 sample adapter registry。共用 orchestration 位於 `tools/e2e/runner-core.mjs`：
 
-- 啟動 Go backend test mode。
+- 依測項 `fixture.adapter` 選擇環境 adapter。
+- `demo-backend` 會啟動 Go backend test mode。
+- `frontend-only` 會透過 automation-only query param 使用前端 deterministic fixture，不需要後端程式碼。
 - 啟動 Cocos automation server。
 - 啟動 Cocos Preview proxy。
 - 產生只包含單一 automation class 的 `testConfig.json`。
@@ -59,7 +62,10 @@ Playwright 不是 fallback，也不取代 Cocos automation assertion；實際測
 1. 在 `assets/slot-e2e.test.ts` 新增一個獨立 `@testClass`。
 2. 複製 `tests/e2e/cases/_template.case.json`，在同一資料夾建立 `my-case.case.json`。
 3. 填入 `id`、`title`、`automation.scriptName`、`automation.className`。
-4. 執行：
+4. 依需求設定 `fixture.adapter`：
+   - `demo-backend`：使用本 repo 的 Go demo backend。
+   - `frontend-only`：只使用前端 deterministic fixture。
+5. 執行：
 
 ```powershell
 npx playwright test --list

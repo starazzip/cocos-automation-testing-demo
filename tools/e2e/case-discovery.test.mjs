@@ -25,6 +25,9 @@ test('discoverE2ECases loads distributed case metadata in deterministic id order
             scriptName: 'slot-e2e.test.ts',
             classNames: ['a_e2e'],
         },
+        fixture: {
+            adapter: 'frontend-only',
+        },
     });
     writeCase(repoRoot, '_template.case.json', {
         id: 'ignored-template',
@@ -40,6 +43,7 @@ test('discoverE2ECases loads distributed case metadata in deterministic id order
     assert.deepEqual(cases.map((e2eCase) => e2eCase.id), ['a-case', 'z-case']);
     assert.equal(cases[0].scriptName, 'slot-e2e.test.ts');
     assert.deepEqual(cases[0].classNames, ['a_e2e']);
+    assert.deepEqual(cases[0].fixture, { adapter: 'frontend-only' });
     assert.equal(cases[0].sourcePath, 'tests/e2e/cases/a.case.json');
     assert.deepEqual(cases[1].tags, ['z']);
 });
@@ -84,6 +88,20 @@ test('discoverE2ECases rejects metadata pointing at a missing Cocos script', (t)
     assert.throws(
         () => discoverE2ECases(repoRoot),
         /was not found under assets/,
+    );
+});
+
+test('discoverE2ECases rejects invalid fixture metadata', (t) => {
+    const repoRoot = createFixtureProject(t);
+    writeAsset(repoRoot, 'slot-e2e.test.ts');
+    writeCase(repoRoot, 'broken-fixture.case.json', {
+        ...validCase(),
+        fixture: {},
+    });
+
+    assert.throws(
+        () => discoverE2ECases(repoRoot),
+        /fixture\.adapter/,
     );
 });
 

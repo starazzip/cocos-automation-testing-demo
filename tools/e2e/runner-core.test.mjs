@@ -62,6 +62,13 @@ test('createRunPaths keeps per-case artifacts under the temp root', () => {
 test('createPreviewUrl carries automation and optional visual mode', () => {
     assert.equal(createPreviewUrl('http://127.0.0.1:7457'), 'http://127.0.0.1:7457?automation=1');
     assert.equal(createPreviewUrl('http://127.0.0.1:7457', { visualMode: true }), 'http://127.0.0.1:7457?automation=1&visual=1');
+    assert.equal(
+        createPreviewUrl('http://127.0.0.1:7457', {
+            urlParams: { slotFixture: 'frontend-only' },
+            visualMode: true,
+        }),
+        'http://127.0.0.1:7457?automation=1&slotFixture=frontend-only&visual=1',
+    );
 });
 
 test('assertAutomationSummaryPassed reports failed automation logs', () => {

@@ -10,15 +10,15 @@ review
 
 ## Current Phase
 
-2
+3
 
 ## Last Action
 
-/qdd-review 2
+/qdd-review 3
 
 ## Next Action
 
-/qdd-phase 3
+/qdd-phase 4
 
 ## Blockers
 
@@ -28,11 +28,14 @@ review
 
 - `plans/cocos-e2e-framework/README.md`
 - `plans/cocos-e2e-framework/AGENTS.md`
-- `plans/cocos-e2e-framework/phases/phase-02.md`
-- `tools/e2e/case-discovery.mjs`
-- `tools/e2e/case-discovery.test.mjs`
+- `plans/cocos-e2e-framework/phases/phase-03.md`
+- `plans/cocos-e2e-framework/phases/phase-04.md`
+- `plans/cocos-e2e-framework/smoke.md`
+- `tools/e2e/environment-adapters.mjs`
+- `tools/e2e/environment-adapters.test.mjs`
+- `tools/e2e/runner-core.mjs`
 - `tests/e2e/cases/`
 
 ## Updated At
 
-2026-06-25T16:16:15+08:00
+2026-06-25T16:51:39+08:00

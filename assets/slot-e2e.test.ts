@@ -73,6 +73,32 @@ export class SlotForcedSpinE2E {
     }
 }
 
+@runScene('main')
+@testClass('slot_frontend_only_spin_e2e')
+export class SlotFrontendOnlySpinE2E {
+    @testCase
+    async creditInAndSpinWithoutBackend() {
+        await prepareSlot();
+        await visualStep();
+
+        await clickButton('CreditOutButton');
+        await visualStep();
+        await waitForLabel('BalanceLabel', 'BALANCE 0', 3000);
+
+        await clickButton('CreditInButton');
+        await visualStep();
+        await waitForLabel('BalanceLabel', 'BALANCE 100', 3000);
+
+        await clickButton('SpinButton');
+        await visualStep();
+
+        await waitForLabel('BalanceLabel', 'BALANCE 129', 6000);
+        await waitForLabel('WinLabel', 'WIN 30', 6000);
+        assertBoard(forcedBoard);
+        await visualStep();
+    }
+}
+
 async function prepareSlot(): Promise<void> {
     await loadMainScene();
     await mountSlotFixture();

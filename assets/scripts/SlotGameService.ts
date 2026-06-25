@@ -1,10 +1,15 @@
 import { BalancePayload, CreditOutPayload, SettingsPayload, SpinPayload } from './protocol';
-import { SlotWebSocketAdapter } from './SlotWebSocketAdapter';
+
+export interface SlotGameAdapter {
+    connect(): Promise<void>;
+    close(): void;
+    request<TPayload = unknown, TResult = unknown>(type: string, payload?: TPayload): Promise<TResult>;
+}
 
 export class SlotGameService {
     private settingsCache: SettingsPayload | null = null;
 
-    constructor(private readonly adapter: SlotWebSocketAdapter) {}
+    constructor(private readonly adapter: SlotGameAdapter) {}
 
     connect(): Promise<void> {
         return this.adapter.connect();

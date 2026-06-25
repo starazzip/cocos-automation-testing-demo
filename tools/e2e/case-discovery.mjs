@@ -65,6 +65,7 @@ function readCaseFile(repoRoot, filePath, options) {
         title: requiredString(parsed.title, 'title', filePath),
         scriptName,
         classNames,
+        fixture: normalizeFixture(parsed.fixture, filePath),
         tags: normalizeTags(parsed.tags, filePath),
         sourcePath: normalizePath(relative(repoRoot, filePath)),
     });
@@ -100,6 +101,18 @@ function normalizeTags(tags, filePath) {
         throw caseError(filePath, 'tags must be an array of strings');
     }
     return tags.map((tag) => requiredString(tag, 'tags[]', filePath));
+}
+
+function normalizeFixture(fixture, filePath) {
+    if (fixture === undefined) {
+        return undefined;
+    }
+    if (!fixture || typeof fixture !== 'object' || Array.isArray(fixture)) {
+        throw caseError(filePath, 'fixture must be an object');
+    }
+    return {
+        adapter: requiredString(fixture.adapter, 'fixture.adapter', filePath),
+    };
 }
 
 function validateScriptExists(repoRoot, scriptName, filePath, options) {

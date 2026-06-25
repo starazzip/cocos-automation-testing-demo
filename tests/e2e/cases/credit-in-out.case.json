@@ -5,5 +5,8 @@
     "scriptName": "slot-e2e.test.ts",
     "className": "slot_credit_in_out_e2e"
   },
+  "fixture": {
+    "adapter": "demo-backend"
+  },
   "tags": ["slot", "wallet"]
 }

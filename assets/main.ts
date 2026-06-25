@@ -1,7 +1,7 @@
 import { _decorator, Button, Canvas, Color, Component, director, Graphics, Label, Node, Sprite, UITransform, Vec3 } from 'cc';
-import { SlotGameService } from './scripts/SlotGameService';
+import { SlotGameService, type SlotGameAdapter } from './scripts/SlotGameService';
 import { SlotWebSocketAdapter } from './scripts/SlotWebSocketAdapter';
-import { Board, PaylineWin, ProtocolError, SettingsPayload } from './scripts/protocol';
+import { BalancePayload, Board, CreditOutPayload, PaylineWin, ProtocolError, SettingsPayload, SpinPayload } from './scripts/protocol';
 
 const { ccclass, property } = _decorator;
 
@@ -39,7 +39,7 @@ export class main extends Component {
 
     start() {
         this.buildUI();
-        this.service = new SlotGameService(new SlotWebSocketAdapter(this.websocketUrl));
+        this.service = new SlotGameService(createSlotGameAdapter(this.websocketUrl));
         this.connectAndRefresh();
     }
 
@@ -393,4 +393,113 @@ export class main extends Component {
             this.scheduleOnce(() => resolve(), secondsMs / 1000);
         });
     }
+}
+
+function createSlotGameAdapter(websocketUrl: string): SlotGameAdapter {
+    if (isFrontendOnlyAutomationFixture()) {
+        return new FrontendOnlySlotAdapter();
+    }
+    return new SlotWebSocketAdapter(websocketUrl);
+}
+
+function isFrontendOnlyAutomationFixture(): boolean {
+    const locationLike = (globalThis as { location?: { search?: string } }).location;
+    const search = locationLike?.search ?? '';
+    if (!search) {
+        return false;
+    }
+    const params = new URLSearchParams(search);
+    return params.get('automation') === '1' && params.get('slotFixture') === 'frontend-only';
+}
+
+class FrontendOnlySlotAdapter implements SlotGameAdapter {
+    private balance = 0;
+    private spinID = 1;
+
+    connect(): Promise<void> {
+        return Promise.resolve();
+    }
+
+    close(): void {
+        // No external connection is opened for the frontend-only fixture.
+    }
+
+    request<TPayload = unknown, TResult = unknown>(type: string, payload?: TPayload): Promise<TResult> {
+        switch (type) {
+            case 'settings.request':
+                return Promise.resolve(this.settings() as TResult);
+            case 'wallet.balance.request':
+                return Promise.resolve({ balance: this.balance } as TResult);
+            case 'wallet.credit_in.request':
+                return Promise.resolve(this.creditIn(payload) as TResult);
+            case 'wallet.credit_out.request':
+                return Promise.resolve(this.creditOut() as TResult);
+            case 'spin.request':
+                return Promise.resolve(this.spin(payload) as TResult);
+            default:
+                return Promise.reject(new ProtocolError({
+                    code: 'unsupported_request',
+                    message: `unsupported frontend fixture request: ${type}`,
+                }));
+        }
+    }
+
+    private settings(): SettingsPayload {
+        return {
+            symbols: ['A', 'K', 'Q', 'J', '7'],
+            betOptions: [1, 5, 10],
+            defaultBet: 1,
+            creditIn: 100,
+            localPlayer: 'frontend-fixture-player',
+        };
+    }
+
+    private creditIn(payload: unknown): BalancePayload {
+        const amount = amountFromPayload(payload, 100);
+        this.balance += amount;
+        return { balance: this.balance };
+    }
+
+    private creditOut(): CreditOutPayload {
+        const paidOut = this.balance;
+        this.balance = 0;
+        return { paidOut, balance: this.balance };
+    }
+
+    private spin(payload: unknown): SpinPayload {
+        const bet = amountFromPayload(payload, 1, 'bet');
+        if (this.balance < bet) {
+            throw new ProtocolError({
+                code: 'insufficient_balance',
+                message: 'insufficient balance',
+            });
+        }
+
+        const board: Board = [
+            ['A', 'A', 'A'],
+            ['K', 'Q', 'K'],
+            ['7', '7', '7'],
+        ];
+        const win = 30;
+        this.balance = this.balance - bet + win;
+        return {
+            spinId: this.spinID++,
+            board,
+            bet,
+            win,
+            balance: this.balance,
+            lines: [
+                { row: 0, symbol: 'A', count: 3, win: 10 },
+                { row: 2, symbol: '7', count: 3, win: 20 },
+            ],
+        };
+    }
+}
+
+function amountFromPayload(payload: unknown, fallback: number, field = 'amount'): number {
+    if (!payload || typeof payload !== 'object') {
+        return fallback;
+    }
+    const value = (payload as Record<string, unknown>)[field];
+    return typeof value === 'number' ? value : fallback;
 }

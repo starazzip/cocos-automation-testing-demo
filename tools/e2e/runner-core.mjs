@@ -4,6 +4,13 @@ import { spawn } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
+import {
+    mergeEnvironmentAdapterOptions,
+    normalizeEnvironmentAdapter,
+    setupEnvironmentAdapter,
+    teardownEnvironmentAdapter,
+} from './environment-adapters.mjs';
+
 const DEFAULT_TEMP_ROOT = 'temp/vscode-e2e';
 const DEFAULT_AUTOMATION_PORT = 8000;
 const DEFAULT_PREVIEW_PROXY_PORT = 7457;
@@ -80,7 +87,8 @@ export async function runCocosE2ECase({
     options = {},
 }) {
     const validCase = validateE2ECase(e2eCase);
-    const settings = createRunnerSettings(options);
+    const environmentAdapter = normalizeEnvironmentAdapter(environment);
+    const settings = createRunnerSettings(mergeEnvironmentAdapterOptions(options, environmentAdapter));
     const runPaths = createRunPaths(repoRoot, validCase, { tempRoot: settings.tempRoot });
 
     rmSync(runPaths.runDir, { recursive: true, force: true });
@@ -103,6 +111,7 @@ export async function runCocosE2ECase({
         e2eCase: validCase,
         runPaths,
         settings,
+        environment: environmentAdapter,
         startManagedProcess(command, args, processOptions) {
             const child = startProcess(command, args, processOptions);
             processes.push(child);
@@ -121,12 +130,12 @@ export async function runCocosE2ECase({
 
     try {
         await waitForUnavailableUrls([
-            ...(environment.unavailableUrls ?? []),
+            ...environmentAdapter.unavailableUrls,
             settings.automation.summaryUrl,
             settings.previewProxy.testConfigUrl,
         ], settings.unavailableTimeoutMs);
 
-        processes.push(...collectProcesses(await environment.setup?.(context)));
+        processes.push(...collectProcesses(await setupEnvironmentAdapter(environmentAdapter, context)));
 
         processes.push(startProcess(settings.automation.command, settings.automation.args, {
             cwd: repoRoot,
@@ -158,7 +167,10 @@ export async function runCocosE2ECase({
         }
 
         const visualMode = process.env[settings.visual.enabledEnv] === '1';
-        await page.goto(createPreviewUrl(settings.previewProxy.baseUrl, { visualMode }), {
+        await page.goto(createPreviewUrl(settings.previewProxy.baseUrl, {
+            visualMode,
+            urlParams: settings.preview.urlParams,
+        }), {
             waitUntil: 'domcontentloaded',
             timeout: settings.preview.gotoTimeoutMs,
         });
@@ -174,12 +186,15 @@ export async function runCocosE2ECase({
         for (const child of processes.reverse()) {
             await stopProcess(child);
         }
-        await environment.teardown?.(context);
+        await teardownEnvironmentAdapter(environmentAdapter, context);
     }
 }
 
 export function createPreviewUrl(baseUrl, options = {}) {
     const searchParams = new URLSearchParams({ automation: '1' });
+    for (const [key, value] of Object.entries(options.urlParams ?? {})) {
+        searchParams.set(key, String(value));
+    }
     if (options.visualMode) {
         searchParams.set('visual', '1');
     }
@@ -375,6 +390,7 @@ function createRunnerSettings(options) {
             rebuildLogFile: 'cocos-rebuild-preview.log',
             rebuildTimeoutMs: 90000,
             gotoTimeoutMs: 30000,
+            urlParams: {},
             ...(options.preview ?? {}),
         },
         visual: {
