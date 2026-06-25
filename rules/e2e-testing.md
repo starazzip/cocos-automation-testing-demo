@@ -7,7 +7,8 @@ Explore Cocos `automation-framework` / automation testing from `cocos/cocos-test
 Reference repo:
 
 - `https://github.com/cocos/cocos-test-projects`
-- The `v3.8.7` package.json references `automation-framework` `0.4.6`.
+- Look for the older publicly available `automation-framework` `1.0.0` release and the matching `cocos-test-projects` source/commit.
+- Do not use the `0.4.6` package reference as the main path; it was not publicly available when last checked.
 
 ## Strategy
 
@@ -23,4 +24,3 @@ Reference repo:
 3. Connect frontend to backend.
 4. Click spin.
 5. Assert displayed symbols, win, and balance.
-
