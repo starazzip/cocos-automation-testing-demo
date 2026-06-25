@@ -29,3 +29,8 @@ node_modules/
 settings/mcp-server.json
 settings/tool-manager.json
 server/*.db
+
+# Playwright local output
+test-results/
+playwright-report/
+blob-report/

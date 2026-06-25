@@ -10,15 +10,15 @@ review
 
 ## Current Phase
 
-1
+4
 
 ## Last Action
 
-/qdd-review 1
+/qdd-review 4
 
 ## Next Action
 
-/qdd-phase 2
+/qdd-smoke
 
 ## Blockers
 
@@ -32,7 +32,22 @@ review
 - `plans/minimal-slot-game/phases/`
 - `plans/minimal-slot-game/AGENTS.md`
 - `plans/minimal-slot-game/status.md`
+- `plans/minimal-slot-game/phases/phase-04.md`
+- `assets/slot-e2e.test.ts`
+- `tools/automation-server.mjs`
+- `tools/cocos-preview-proxy.mjs`
+- `tools/cocos-rebuild-preview.mjs`
+- `tools/wait-cocos-preview-bundle.mjs`
+- `tools/testConfig.slot-e2e.json`
+- `tests/e2e/cocos-slot.spec.mjs`
+- `playwright.config.mjs`
+- `.gitignore`
+- `test-results/`
+
+## Status Source
+
+Read from `plans/current.md`, `status.md`, `phase-04.md`, and current Phase 4 verification output.
 
 ## Updated At
 
-2026-06-25T10:43:45.5039579+08:00
+2026-06-25T14:41:47+08:00

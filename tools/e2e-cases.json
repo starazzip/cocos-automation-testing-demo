@@ -1,0 +1,14 @@
+[
+  {
+    "id": "credit-in-out",
+    "title": "credit-in and credit-out",
+    "scriptName": "slot-e2e.test.ts",
+    "className": "slot_credit_in_out_e2e"
+  },
+  {
+    "id": "forced-spin",
+    "title": "forced board spin payout",
+    "scriptName": "slot-e2e.test.ts",
+    "className": "slot_forced_spin_e2e"
+  }
+]

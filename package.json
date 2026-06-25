@@ -1,7 +1,16 @@
 {
   "name": "NewProject_1",
   "uuid": "cd6e0174-b630-43e0-906a-7114816ebe68",
+  "scripts": {
+    "cocos:rebuild-preview": "node tools/cocos-rebuild-preview.mjs",
+    "cocos:wait-preview": "node tools/wait-cocos-preview-bundle.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
   "creator": {
     "version": "3.8.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
   }
 }
