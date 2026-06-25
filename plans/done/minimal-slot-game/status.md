@@ -6,19 +6,19 @@ plans/minimal-slot-game
 
 ## Stage
 
-review
+done
 
 ## Current Phase
 
-4
+5
 
 ## Last Action
 
-/qdd-review 4
+Manual smoke completed
 
 ## Next Action
 
-/qdd-smoke
+Commit and push completed plan artifacts
 
 ## Blockers
 
@@ -32,7 +32,9 @@ review
 - `plans/minimal-slot-game/phases/`
 - `plans/minimal-slot-game/AGENTS.md`
 - `plans/minimal-slot-game/status.md`
-- `plans/minimal-slot-game/phases/phase-04.md`
+- `plans/minimal-slot-game/phases/phase-05.md`
+- `plans/minimal-slot-game/smoke.md`
+- `extensions/automation-framework/assets/runtime/main.ts`
 - `assets/slot-e2e.test.ts`
 - `tools/automation-server.mjs`
 - `tools/cocos-preview-proxy.mjs`
@@ -46,8 +48,8 @@ review
 
 ## Status Source
 
-Read from `plans/current.md`, `status.md`, `phase-04.md`, and current Phase 4 verification output.
+Read from `plans/current.md`, `status.md`, `phase-05.md`, updated `smoke.md`, follow-up E2E verification output, and user-confirmed manual smoke checklist.
 
 ## Updated At
 
-2026-06-25T14:41:47+08:00
+2026-06-25T15:03:09+08:00

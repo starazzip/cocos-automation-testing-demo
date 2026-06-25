@@ -14,8 +14,13 @@ import { Runner } from 'db://automation-framework/runtime/test-framework.mjs';
  */
 let started = false;
 
+function automationEnabled() {
+    const locationLike = (globalThis as { location?: { search?: string } }).location;
+    return locationLike?.search?.includes('automation=1') === true;
+}
+
 function runOnce() {
-    if (EDITOR || started) {
+    if (EDITOR || started || !automationEnabled()) {
         return;
     }
     started = true;
@@ -29,4 +34,3 @@ game.on(Game.EVENT_GAME_INITED, () => {
 if (!EDITOR) {
     setTimeout(runOnce, 0);
 }
-

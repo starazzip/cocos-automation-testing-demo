@@ -1,1 +1,1 @@
-plans/minimal-slot-game
+plans/done/minimal-slot-game

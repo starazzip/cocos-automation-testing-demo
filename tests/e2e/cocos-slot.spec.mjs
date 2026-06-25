@@ -21,6 +21,10 @@ for (const e2eCase of cases) {
 
     const processes = [];
     try {
+      await waitForHttpUnavailable('http://127.0.0.1:8080/healthz', 5000);
+      await waitForHttpUnavailable('http://127.0.0.1:8000/summary', 5000);
+      await waitForHttpUnavailable('http://127.0.0.1:7457/testConfig.json', 5000);
+
       processes.push(startProcess('go', ['run', './cmd/server'], {
         cwd: resolve(repoRoot, 'server'),
         env: {
@@ -55,7 +59,11 @@ for (const e2eCase of cases) {
       }
 
       const visualMode = process.env.E2E_VISUAL === '1';
-      await page.goto(`http://127.0.0.1:7457${visualMode ? '?visual=1' : ''}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      const searchParams = new URLSearchParams({ automation: '1' });
+      if (visualMode) {
+        searchParams.set('visual', '1');
+      }
+      await page.goto(`http://127.0.0.1:7457?${searchParams.toString()}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
       const summary = await waitForAutomationSummary(90000);
       await testInfo.attach('automation-summary', {
         body: JSON.stringify(summary, null, 2),
@@ -69,7 +77,7 @@ for (const e2eCase of cases) {
       }
     } finally {
       for (const child of processes.reverse()) {
-        stopProcess(child);
+        await stopProcess(child);
       }
     }
   });
@@ -131,7 +139,7 @@ async function runCommand(command, args, options = {}) {
 function waitForProcess(child, timeoutMs) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      stopProcess(child);
+      void stopProcess(child);
       reject(new Error(`process timed out after ${timeoutMs}ms`));
     }, timeoutMs);
     child.on('exit', (code, signal) => {
@@ -143,13 +151,28 @@ function waitForProcess(child, timeoutMs) {
 
 function stopProcess(child) {
   if (child.exitCode !== null) {
-    return;
+    return Promise.resolve();
   }
   if (process.platform === 'win32') {
-    spawn('taskkill', ['/pid', String(child.pid), '/t', '/f'], { shell: true, stdio: 'ignore' });
-    return;
+    const killer = spawn('taskkill', ['/pid', String(child.pid), '/t', '/f'], { shell: true, stdio: 'ignore' });
+    return waitForProcessExit(killer, 5000);
   }
   child.kill('SIGTERM');
+  return waitForProcessExit(child, 5000);
+}
+
+function waitForProcessExit(child, timeoutMs) {
+  return new Promise((resolve) => {
+    if (child.exitCode !== null) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(resolve, timeoutMs);
+    child.once('exit', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
 }
 
 async function waitForHttp(url, timeoutMs) {
@@ -163,6 +186,19 @@ async function waitForHttp(url, timeoutMs) {
     }
   }
   throw new Error(`${url} was not reachable within ${timeoutMs}ms`);
+}
+
+async function waitForHttpUnavailable(url, timeoutMs) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      await httpGet(url);
+    } catch {
+      return;
+    }
+    await delay(250);
+  }
+  throw new Error(`${url} is still reachable after ${timeoutMs}ms`);
 }
 
 async function waitForAutomationSummary(timeoutMs) {
