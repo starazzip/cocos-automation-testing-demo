@@ -40,7 +40,7 @@ npm run test:e2e
 
 ## 運作方式
 
-`tests/e2e/cocos-slot.spec.mjs` 只負責 orchestration：
+`tests/e2e/cocos-slot.spec.mjs` 只負責註冊 Playwright 測試與 sample backend adapter。共用 orchestration 位於 `tools/e2e/runner-core.mjs`：
 
 - 啟動 Go backend test mode。
 - 啟動 Cocos automation server。
@@ -50,13 +50,16 @@ npm run test:e2e
 - 用 Playwright 開啟 proxy URL，讓 Cocos `automation-framework` 執行真正的 E2E。
 - 讀取 automation `/summary` 判斷成功或失敗。
 
-Playwright 不是 fallback，也不取代 Cocos automation assertion；實際測試仍在 `assets/slot-e2e.test.ts` 內執行。
+測項 metadata 分散在 `tests/e2e/cases/*.case.json`。`tools/e2e/case-discovery.mjs` 會讀取、驗證、排序並提供給 Playwright Test Explorer。
+
+Playwright 不是 fallback，也不取代 Cocos automation assertion；實際測試仍在 Cocos automation test class 內執行，例如 `assets/slot-e2e.test.ts`。
 
 ## 新增 E2E
 
 1. 在 `assets/slot-e2e.test.ts` 新增一個獨立 `@testClass`。
-2. 在 `tools/e2e-cases.json` 新增對應的 `id`、`title`、`scriptName`、`className`。
-3. 執行：
+2. 複製 `tests/e2e/cases/_template.case.json`，在同一資料夾建立 `my-case.case.json`。
+3. 填入 `id`、`title`、`automation.scriptName`、`automation.className`。
+4. 執行：
 
 ```powershell
 npx playwright test --list

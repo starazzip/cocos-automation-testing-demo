@@ -1,12 +1,16 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
+import { createPreviewBundlePatterns, discoverE2ECases } from './e2e/case-discovery.mjs';
 
 const previewRoot = resolve(process.env.COCOS_PREVIEW_ROOT || 'temp/programming/packer-driver/targets/preview');
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const fallbackPatterns = ['slot-e2e.test.ts', 'slot_forced_spin_e2e', 'slot_credit_in_out_e2e'];
 
 export async function waitForPreviewBundle(options = {}) {
     const patterns = options.patterns || process.argv.slice(2);
-    const expectedPatterns = patterns.length > 0 ? patterns : ['slot-e2e.test.ts', 'slot_forced_spin_e2e', 'slot_credit_in_out_e2e'];
+    const expectedPatterns = patterns.length > 0 ? patterns : defaultPreviewBundlePatterns();
     const timeoutMs = options.timeoutMs ?? Number(process.env.COCOS_PREVIEW_WAIT_MS || 60000);
     const intervalMs = options.intervalMs ?? 1000;
     const startedAt = Date.now();
@@ -22,6 +26,11 @@ export async function waitForPreviewBundle(options = {}) {
 
     const missing = findMissingPatterns(expectedPatterns);
     throw new Error(`Cocos preview bundle did not include ${missing.join(', ')} within ${timeoutMs}ms. Start Cocos Preview once, then run this command again.`);
+}
+
+function defaultPreviewBundlePatterns() {
+    const patterns = createPreviewBundlePatterns(discoverE2ECases(repoRoot));
+    return patterns.length > 0 ? patterns : fallbackPatterns;
 }
 
 function findMissingPatterns(patterns) {

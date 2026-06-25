@@ -1,12 +1,12 @@
 import { test } from '@playwright/test';
-import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { discoverE2ECases } from '../../tools/e2e/case-discovery.mjs';
 import { runCocosE2ECase } from '../../tools/e2e/runner-core.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const cases = JSON.parse(readFileSync(resolve(repoRoot, 'tools/e2e-cases.json'), 'utf8'));
+const cases = discoverE2ECases(repoRoot);
 
 const slotBackendEnvironment = {
   unavailableUrls: ['http://127.0.0.1:8080/healthz'],

@@ -1,0 +1,9 @@
+{
+  "id": "my-e2e-case",
+  "title": "short readable test title",
+  "automation": {
+    "scriptName": "slot-e2e.test.ts",
+    "className": "my_e2e_test_class"
+  },
+  "tags": ["sample"]
+}

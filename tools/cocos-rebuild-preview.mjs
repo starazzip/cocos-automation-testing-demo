@@ -1,9 +1,13 @@
 import { request } from 'node:http';
+import { dirname, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
+import { createPreviewBundlePatterns, discoverE2ECases } from './e2e/case-discovery.mjs';
 import { waitForPreviewBundle } from './wait-cocos-preview-bundle.mjs';
 
 const mcpUrl = new URL(process.env.COCOS_MCP_URL || 'http://127.0.0.1:3000/mcp');
 const refreshFolder = process.env.COCOS_REFRESH_FOLDER || 'db://assets';
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 async function main() {
     await callTool('project_refresh_assets', { folder: refreshFolder });
@@ -11,7 +15,7 @@ async function main() {
     // Give Creator a short beat to react to the asset-db refresh before polling preview output.
     await delay(500);
     await waitForPreviewBundle({
-        patterns: ['slot-e2e.test.ts', 'slot_forced_spin_e2e', 'slot_credit_in_out_e2e'],
+        patterns: createPreviewBundlePatterns(discoverE2ECases(repoRoot)),
         timeoutMs: Number(process.env.COCOS_PREVIEW_WAIT_MS || 60000),
         intervalMs: 1000,
     });

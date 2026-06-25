@@ -1,0 +1,9 @@
+{
+  "id": "forced-spin",
+  "title": "forced board spin payout",
+  "automation": {
+    "scriptName": "slot-e2e.test.ts",
+    "className": "slot_forced_spin_e2e"
+  },
+  "tags": ["slot", "spin", "payout"]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "credit-in-out",
+  "title": "credit-in and credit-out",
+  "automation": {
+    "scriptName": "slot-e2e.test.ts",
+    "className": "slot_credit_in_out_e2e"
+  },
+  "tags": ["slot", "wallet"]
+}

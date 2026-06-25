@@ -6,12 +6,6 @@ Create a practical E2E framework for Cocos Creator games that is easy to introdu
 
 The included slot game frontend and Go backend are only fixtures for validating the framework in a realistic client/server setup.
 
-## Current Progress
-
-- Stage: alignment.
-- Questionnaire is ready for user answers.
-- Decisions and implementation phases have not been created.
-
 ## Plan-Specific Restrictions
 
 - Do not treat slot gameplay polish as the main product.
