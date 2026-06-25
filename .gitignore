@@ -25,6 +25,7 @@ node_modules/
 
 # Local agent/tooling state
 .serena/
+.playwright-mcp/
 settings/mcp-server.json
 settings/tool-manager.json
 server/*.db
