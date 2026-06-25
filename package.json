@@ -5,6 +5,7 @@
     "cocos:rebuild-preview": "node tools/cocos-rebuild-preview.mjs",
     "cocos:wait-preview": "node tools/wait-cocos-preview-bundle.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:unit": "node --test tools/e2e/*.test.mjs",
     "test:e2e:ui": "playwright test --ui"
   },
   "creator": {

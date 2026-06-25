@@ -1,1 +1,1 @@
-plans/done/minimal-slot-game
+plans/cocos-e2e-framework
