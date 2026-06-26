@@ -10,12 +10,16 @@
       "platformIndex": 0,
       "testScripts": [
         {
-          "scriptName": "slot-e2e.test.ts",
+          "scriptName": "e2e/credit-in-out.test.ts",
           "classNames": ["slot_credit_in_out_e2e"]
         },
         {
-          "scriptName": "slot-e2e.test.ts",
+          "scriptName": "e2e/forced-spin.test.ts",
           "classNames": ["slot_forced_spin_e2e"]
+        },
+        {
+          "scriptName": "e2e/frontend-only-spin.test.ts",
+          "classNames": ["slot_frontend_only_spin_e2e"]
         }
       ]
     }

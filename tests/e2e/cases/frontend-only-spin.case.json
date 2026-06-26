@@ -2,7 +2,7 @@
   "id": "frontend-only-spin",
   "title": "frontend-only deterministic spin",
   "automation": {
-    "scriptName": "slot-e2e.test.ts",
+    "scriptName": "e2e/frontend-only-spin.test.ts",
     "className": "slot_frontend_only_spin_e2e"
   },
   "fixture": {

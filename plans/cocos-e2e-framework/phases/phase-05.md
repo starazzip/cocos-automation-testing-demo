@@ -2,7 +2,7 @@
 
 ## Status
 
-Not started.
+Implemented.
 
 ## Objective
 
@@ -55,17 +55,27 @@ Not started.
 
 ## Implement
 
-- 遷移 slot case 檔案與 metadata。
-- 更新 Playwright spec、runner config 或 sample config。
-- 更新 demo adapter config 與 frontend-only fixture config。
-- 改善失敗附檔與 cleanup 行為。
+- 已確認 slot demo 使用分散式 case metadata：
+  - `tests/e2e/cases/credit-in-out.case.json`
+  - `tests/e2e/cases/forced-spin.case.json`
+  - `tests/e2e/cases/frontend-only-spin.case.json`
+- 已確認 `tests/e2e/cocos-slot.spec.mjs` 透過 case discovery 與 adapter registry 執行 demo 測項。
+- 已改善 runner 失敗診斷：
+  - 失敗時自動附上 run directory 內的 `.log`、`.json`、`.txt` artifacts。
+  - 每次 run 產生 `cleanup.log`，記錄 managed process 停止結果與 teardown error。
+  - artifact listing 會排除目錄、非診斷副檔名與過大檔案。
+- 已同步 phase 5 runner 改動到 extension scaffold template：
+  - `extensions/cocos-e2e-framework/templates/project/tools/e2e/runner-core.mjs`
+  - `extensions/cocos-e2e-framework/templates/project/tools/e2e/runner-core.test.mjs`
 
 ## E2E
 
-- 執行 `npm run test:e2e -- --list`。
-- 執行所有 demo E2E。
-- 執行單條 backend-backed case。
-- 執行單條 frontend-only case。
+- 已執行 `npx playwright test --list`，列出 3 條 Cocos E2E 測項。
+- 已執行 `npm run test:e2e`，3 條 demo E2E 全部通過。
+- 已執行單條 backend-backed case：`npx playwright test -g "forced board spin payout"`。
+- 已執行單條 frontend-only case：`npx playwright test -g "frontend-only deterministic spin"`。
+- 已確認 `temp/vscode-e2e/*/cleanup.log` 產生。
+- 已確認 `127.0.0.1:8000`、`127.0.0.1:7457`、`127.0.0.1:8080` 在測試後未被占用。
 
 ## Review
 
@@ -80,15 +90,83 @@ Not started.
 
 ## Wrap Up
 
-- 在本 phase 檔記錄實際驗證指令與結果。
-- 更新 `smoke.md`，包含 CLI、Test Explorer、backend-backed、frontend-only 驗證步驟。
+- 已在本 phase 檔記錄實際驗證指令與結果。
+- 已更新 `smoke.md`，包含 CLI、Test Explorer、backend-backed、frontend-only 與 cleanup/artifact 驗證步驟。
 
 ## Verification
 
-- `npm run test:e2e -- --list`
-- `npm run test:e2e`
-- 單條 backend-backed case。
-- 單條 frontend-only case。
+- `npm run test:e2e:unit`：31 passed。
+- `npx playwright test --list`：列出 3 tests in 1 file。
+- `npm run test:e2e`：3 passed。
+- `npx playwright test -g "forced board spin payout"`：1 passed。
+- `npx playwright test -g "frontend-only deterministic spin"`：1 passed。
+- `Test-NetConnection 127.0.0.1 -Port 8000/7457/8080 -InformationLevel Quiet`：皆為 `False`，確認 runner cleanup 後常用測試 ports 已釋放。
+- `git diff --check`：通過。
+
+### Independent Review - 2026-06-26
+
+Findings:
+
+1. `tools/e2e/runner-core.mjs:208` 在已有 `runError` 時直接 `await attachRunArtifacts(...)`，若 Playwright attachment 失敗，`finally` 會丟出 attachment error，導致 `tools/e2e/runner-core.mjs:213` 原本要丟出的 setup/automation failure 被遮蔽。這會讓失敗診斷反而只看到 artifact attach 問題，與本 phase BDD「測試失敗時可看到 automation summary 與 process logs」不一致。Review 期間以小型 Node 重現，原始 `setup failed` 被 `attach failed` 取代。
+2. `tools/e2e/runner-core.mjs:420` 與 `tools/e2e/runner-core.mjs:423` 在 `waitForProcessExit(...)` resolve 後固定記錄 `stopped: true`，但 `tools/e2e/runner-core.mjs:432` 的 timeout 也會 resolve，沒有區分「真的 exit」與「等到 timeout」。因此 `cleanup.log` 可能誤報 process 已停止，無法可靠支撐本 phase done criteria「cleanup 不留下 Go backend、automation server 或 proxy process」。
+
+Review verification:
+
+- `git diff --check` passed。
+- `fc.exe /b tools\e2e\runner-core.mjs extensions\cocos-e2e-framework\templates\project\tools\e2e\runner-core.mjs` passed：template 與 root runner 相同。
+- `fc.exe /b tools\e2e\runner-core.test.mjs extensions\cocos-e2e-framework\templates\project\tools\e2e\runner-core.test.mjs` passed：template test 與 root test 相同。
+- `node -e "...runCocosE2ECase({ environment.setup throws, testInfo.attach throws })..."` reproduced finding：輸出 `attach failed`，原始 `setup failed` 被遮蔽。
+
+Next action: `/qdd-phase-fix 5`。
+
+### Phase Fix After Review - 2026-06-26
+
+Fixes:
+
+- `tools/e2e/runner-core.mjs` 在 artifact attachment 失敗時不再遮蔽既有 `runError`；若原本已經有 setup/automation failure，仍回報原始失敗，並把 `artifactAttachError=...` 追加到 `cleanup.log`。
+- `tools/e2e/runner-core.mjs` 的 process cleanup 結果現在區分 `exited`、`stopped` 與 `timedOut`，`waitForProcessExit()` timeout 不再被視為成功停止。
+- 新增 regression tests：
+  - artifact attach 失敗時保留原始 setup failure。
+  - process exit wait timeout 時回傳 `exited: false` 與 `timedOut: true`。
+- 已同步相同修正到 extension scaffold template：
+  - `extensions/cocos-e2e-framework/templates/project/tools/e2e/runner-core.mjs`
+  - `extensions/cocos-e2e-framework/templates/project/tools/e2e/runner-core.test.mjs`
+
+Fix verification:
+
+- `npm run test:e2e:unit`：33 passed。
+- `node -e "...runCocosE2ECase({ environment.setup throws, testInfo.attach throws })..."`：輸出原始 `setup failed` wrapper，不再輸出 `attach failed`。
+- `fc.exe /b tools\e2e\runner-core.mjs extensions\cocos-e2e-framework\templates\project\tools\e2e\runner-core.mjs`：no differences。
+- `fc.exe /b tools\e2e\runner-core.test.mjs extensions\cocos-e2e-framework\templates\project\tools\e2e\runner-core.test.mjs`：no differences。
+- `npx playwright test --list`：列出 3 tests in 1 file。
+- `npm run test:e2e`：3 passed。
+- `npx playwright test -g "forced board spin payout"`：1 passed。
+- `npx playwright test -g "frontend-only deterministic spin"`：1 passed。
+- `temp/vscode-e2e/forced-spin/cleanup.log`：cleanup entries 包含 `exited: true`、`stopped: true`、`timedOut: false`。
+- `Test-NetConnection 127.0.0.1 -Port 8000/7457/8080 -InformationLevel Quiet`：皆為 `False`。
+- `git diff --check`：通過。
+
+Next action: `/qdd-review 5`。
+
+### Independent Review After Fix - 2026-06-26
+
+Findings:
+
+- None.
+
+Review verification:
+
+- `npm run test:e2e:unit` passed：33 tests passed。
+- `npx playwright test --list` passed：列出 3 tests in 1 file。
+- `npm run test:e2e` passed：3 tests passed。
+- `node -e "...runCocosE2ECase({ environment.setup throws, testInfo.attach throws })..."` passed：輸出原始 setup failure wrapper，沒有被 artifact attach failure 遮蔽。
+- `fc.exe /b tools\e2e\runner-core.mjs extensions\cocos-e2e-framework\templates\project\tools\e2e\runner-core.mjs` passed：no differences。
+- `fc.exe /b tools\e2e\runner-core.test.mjs extensions\cocos-e2e-framework\templates\project\tools\e2e\runner-core.test.mjs` passed：no differences。
+- `temp/vscode-e2e/forced-spin/cleanup.log` checked：cleanup entries 包含 `exited: true`、`stopped: true`、`timedOut: false`。
+- `Test-NetConnection 127.0.0.1 -Port 8000/7457/8080 -InformationLevel Quiet` checked：皆為 `False`。
+- `git diff --check` passed。
+
+Next action: `/qdd-smoke`。
 
 ## Done Criteria
 

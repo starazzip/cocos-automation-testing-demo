@@ -1,7 +1,7 @@
-import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, dirname, extname, resolve } from 'node:path';
+import { appendFileSync, createWriteStream, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { get } from 'node:http';
 import { spawn } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import {
@@ -14,12 +14,13 @@ import {
 const DEFAULT_TEMP_ROOT = 'temp/vscode-e2e';
 const DEFAULT_AUTOMATION_PORT = 8000;
 const DEFAULT_PREVIEW_PROXY_PORT = 7457;
-export const DEFAULT_RUN_ARTIFACT_FILES = [
+const DEFAULT_RUN_ARTIFACT_FILES = [
     'testConfig.json',
     'automation-server.log',
     'preview-proxy.log',
     'cocos-rebuild-preview.log',
     'backend.log',
+    'cleanup.log',
 ];
 
 export function validateE2ECase(e2eCase) {
@@ -135,8 +136,7 @@ export async function runCocosE2ECase({
         delay,
     };
 
-    let primaryError = null;
-
+    let runError;
     try {
         await waitForUnavailableUrls([
             ...environmentAdapter.unavailableUrls,
@@ -192,35 +192,33 @@ export async function runCocosE2ECase({
             await delay(Number(process.env[settings.visual.holdEnv] ?? settings.visual.defaultHoldMs));
         }
     } catch (error) {
-        primaryError = error;
-        throw error;
+        runError = error;
     } finally {
-        const cleanupErrors = [];
-        for (const child of processes.reverse()) {
-            try {
-                await stopProcess(child);
-            } catch (error) {
-                cleanupErrors.push(error);
-            }
-        }
+        const cleanupResults = await stopManagedProcesses(processes);
+        let teardownError;
         try {
             await teardownEnvironmentAdapter(environmentAdapter, context);
         } catch (error) {
-            cleanupErrors.push(error);
-        }
-
-        try {
-            await attachRunArtifacts(testInfo, runPaths);
-        } catch (error) {
-            cleanupErrors.push(error);
-        }
-        if (cleanupErrors.length > 0) {
-            const cleanupError = new Error(formatCleanupErrors(cleanupErrors));
-            if (!primaryError) {
-                throw cleanupError;
+            teardownError = error;
+            if (!runError) {
+                runError = error;
             }
-            console.warn(cleanupError.message);
         }
+        writeCleanupLog(runPaths, cleanupResults, teardownError);
+        if ((runError && settings.artifacts.attachOnFailure) || settings.artifacts.attachOnSuccess) {
+            try {
+                await attachRunArtifacts(testInfo, runPaths, settings.artifacts);
+            } catch (error) {
+                appendCleanupLog(runPaths, [`artifactAttachError=${errorMessage(error)}`]);
+                if (!runError) {
+                    runError = error;
+                }
+            }
+        }
+    }
+
+    if (runError) {
+        throw runError;
     }
 }
 
@@ -264,19 +262,45 @@ export function formatAutomationLogs(summary, limit = 30) {
         .join('\n');
 }
 
+export function listRunArtifacts(runPaths, options = {}) {
+    const runDir = typeof runPaths === 'string' ? runPaths : runPaths.runDir;
+    if (!runDir || !existsSync(runDir)) {
+        return [];
+    }
+
+    const maxBytes = options.maxBytes ?? 5 * 1024 * 1024;
+    const extensions = new Set(options.extensions ?? ['.json', '.log', '.txt']);
+    return readdirSync(runDir)
+        .map((fileName) => {
+            const filePath = resolve(runDir, fileName);
+            const stat = statSync(filePath);
+            return { name: fileName, path: filePath, size: stat.size, isFile: stat.isFile() };
+        })
+        .filter((artifact) => artifact.isFile)
+        .filter((artifact) => artifact.size <= maxBytes)
+        .filter((artifact) => extensions.has(extname(artifact.name).toLowerCase()))
+        .map(({ name, path, size }) => ({ name, path, size }))
+        .sort((left, right) => left.name.localeCompare(right.name));
+}
+
 export function collectRunArtifacts(runPaths, fileNames = DEFAULT_RUN_ARTIFACT_FILES) {
+    const runDir = typeof runPaths === 'string' ? runPaths : runPaths.runDir;
+    if (!runDir || !existsSync(runDir)) {
+        return [];
+    }
     return fileNames
         .map((fileName) => {
-            const filePath = fileName === 'testConfig.json'
-                ? runPaths.testConfigPath
-                : runPaths.logPath(fileName);
+            const filePath = resolve(runDir, fileName);
+            if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+                return undefined;
+            }
             return {
                 name: fileName,
                 path: filePath,
-                contentType: fileName.endsWith('.json') ? 'application/json' : 'text/plain',
+                contentType: artifactContentType(fileName),
             };
         })
-        .filter((artifact) => existsSync(artifact.path));
+        .filter(Boolean);
 }
 
 export function formatCleanupErrors(errors) {
@@ -294,6 +318,7 @@ export function startProcess(command, args, options = {}) {
         shell: process.platform === 'win32',
         stdio: ['ignore', 'pipe', 'pipe'],
     });
+    child.e2eProcessName = options.name ?? `${command} ${args.join(' ')}`.trim();
     child.stdout.pipe(out, { end: false });
     child.stderr.pipe(out, { end: false });
     child.on('exit', (code, signal) => {
@@ -378,35 +403,110 @@ function waitForProcess(child, timeoutMs) {
     });
 }
 
+async function stopManagedProcesses(processes) {
+    const results = [];
+    for (const child of processes.reverse()) {
+        results.push(await stopProcess(child));
+    }
+    return results;
+}
+
 function stopProcess(child) {
+    const result = {
+        name: child.e2eProcessName ?? `pid ${child.pid}`,
+        pid: child.pid,
+        exitCode: child.exitCode,
+        signalCode: child.signalCode,
+        exited: child.exitCode !== null,
+        stopped: false,
+        timedOut: false,
+    };
     if (child.exitCode !== null) {
-        return Promise.resolve();
+        return Promise.resolve(result);
     }
     if (process.platform === 'win32') {
         const killer = spawn('taskkill', ['/pid', String(child.pid), '/t', '/f'], { shell: true, stdio: 'ignore' });
-        return waitForProcessExit(killer, 5000);
+        return waitForProcessExit(killer, 5000).then(async (killerResult) => {
+            const exitResult = await waitForProcessExit(child, 5000);
+            return {
+                ...result,
+                exitCode: child.exitCode,
+                signalCode: child.signalCode,
+                exited: exitResult.exited,
+                stopped: exitResult.exited,
+                timedOut: exitResult.timedOut,
+                killCommand: killerResult,
+            };
+        });
     }
     child.kill('SIGTERM');
-    return waitForProcessExit(child, 5000);
+    return waitForProcessExit(child, 5000).then((exitResult) => ({
+        ...result,
+        exitCode: child.exitCode,
+        signalCode: child.signalCode,
+        exited: exitResult.exited,
+        stopped: exitResult.exited,
+        timedOut: exitResult.timedOut,
+    }));
 }
 
-function waitForProcessExit(child, timeoutMs) {
+export function waitForProcessExit(child, timeoutMs) {
     return new Promise((resolve) => {
         if (child.exitCode !== null) {
-            resolve();
+            resolve({
+                exited: true,
+                timedOut: false,
+                exitCode: child.exitCode,
+                signalCode: child.signalCode,
+            });
             return;
         }
-        const timer = setTimeout(resolve, timeoutMs);
-        child.once('exit', () => {
+
+        const onExit = (code, signal) => {
             clearTimeout(timer);
-            resolve();
-        });
+            resolve({
+                exited: true,
+                timedOut: false,
+                exitCode: code,
+                signalCode: signal,
+            });
+        };
+
+        const timer = setTimeout(() => {
+            child.off?.('exit', onExit);
+            resolve({
+                exited: child.exitCode !== null,
+                timedOut: child.exitCode === null,
+                exitCode: child.exitCode,
+                signalCode: child.signalCode,
+            });
+        }, timeoutMs);
+        child.once('exit', onExit);
     });
 }
 
 function createLogStream(logPath) {
     mkdirSync(dirname(logPath), { recursive: true });
     return createWriteStream(logPath, { flags: 'a' });
+}
+
+function writeCleanupLog(runPaths, cleanupResults, teardownError) {
+    const lines = [
+        `cleanupAt=${new Date().toISOString()}`,
+        ...cleanupResults.map((result) => JSON.stringify(result)),
+    ];
+    if (teardownError) {
+        lines.push(`teardownError=${teardownError instanceof Error ? teardownError.message : String(teardownError)}`);
+    }
+    writeFileSync(runPaths.logPath('cleanup.log'), `${lines.join('\n')}\n`);
+}
+
+function appendCleanupLog(runPaths, lines) {
+    appendFileSync(runPaths.logPath('cleanup.log'), `${lines.join('\n')}\n`);
+}
+
+function errorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
 }
 
 function createRunnerSettings(options) {
@@ -455,6 +555,12 @@ function createRunnerSettings(options) {
             defaultHoldMs: 10000,
             ...(options.visual ?? {}),
         },
+        artifacts: {
+            attachOnFailure: true,
+            attachOnSuccess: false,
+            maxBytes: 5 * 1024 * 1024,
+            ...(options.artifacts ?? {}),
+        },
     };
 }
 
@@ -481,16 +587,22 @@ async function attachAutomationSummary(testInfo, summary) {
     });
 }
 
-async function attachRunArtifacts(testInfo, runPaths) {
+async function attachRunArtifacts(testInfo, runPaths, options = {}) {
     if (!testInfo?.attach) {
         return;
     }
-    for (const artifact of collectRunArtifacts(runPaths)) {
-        await testInfo.attach(`cocos-e2e-${artifact.name}`, {
-            body: readFileSync(artifact.path),
-            contentType: artifact.contentType,
+    for (const artifact of listRunArtifacts(runPaths, options)) {
+        await testInfo.attach(`e2e-artifact:${basename(artifact.name)}`, {
+            path: artifact.path,
+            contentType: artifactContentType(artifact.name),
         });
     }
+}
+
+function artifactContentType(fileName) {
+    return extname(fileName).toLowerCase() === '.json'
+        ? 'application/json'
+        : 'text/plain';
 }
 
 function requiredString(source, field) {

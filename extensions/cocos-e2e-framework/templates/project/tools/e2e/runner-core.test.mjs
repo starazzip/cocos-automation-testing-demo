@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { EventEmitter } from 'node:events';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -12,13 +13,16 @@ import {
     createRunPaths,
     formatCleanupErrors,
     formatAutomationLogs,
+    listRunArtifacts,
+    runCocosE2ECase,
     validateE2ECase,
+    waitForProcessExit,
 } from './runner-core.mjs';
 
 const validCase = {
     id: 'forced-spin',
     title: 'forced board spin payout',
-    scriptName: 'slot-e2e.test.ts',
+    scriptName: 'e2e/forced-spin.test.ts',
     className: 'slot_forced_spin_e2e',
 };
 
@@ -35,7 +39,7 @@ test('createAutomationTestConfig maps a case to Cocos automation testConfig', ()
             platformIndex: 0,
             testScripts: [
                 {
-                    scriptName: 'slot-e2e.test.ts',
+                    scriptName: 'e2e/forced-spin.test.ts',
                     classNames: ['slot_forced_spin_e2e'],
                 },
             ],
@@ -61,6 +65,27 @@ test('createRunPaths keeps per-case artifacts under the temp root', () => {
     assert.equal(paths.runDir, resolve(repoRoot, 'temp/vscode-e2e/forced-spin'));
     assert.equal(paths.testConfigPath, resolve(paths.runDir, 'testConfig.json'));
     assert.equal(paths.logPath('backend.log'), resolve(paths.runDir, 'backend.log'));
+});
+
+test('listRunArtifacts returns bounded diagnostic log and JSON files', () => {
+    const runDir = mkdtempSync(resolve(tmpdir(), 'cocos-e2e-artifacts-'));
+    try {
+        writeFileSync(resolve(runDir, 'automation-server.log'), 'server log');
+        writeFileSync(resolve(runDir, 'testConfig.json'), '{}');
+        writeFileSync(resolve(runDir, 'trace.zip'), 'zip content');
+        writeFileSync(resolve(runDir, 'large.log'), '0123456789');
+        mkdirSync(resolve(runDir, 'nested'));
+
+        assert.deepEqual(listRunArtifacts(runDir, { maxBytes: 9 }), [
+            {
+                name: 'testConfig.json',
+                path: resolve(runDir, 'testConfig.json'),
+                size: 2,
+            },
+        ]);
+    } finally {
+        rmSync(runDir, { recursive: true, force: true });
+    }
 });
 
 test('createPreviewUrl carries automation and optional visual mode', () => {
@@ -98,7 +123,11 @@ test('collectRunArtifacts returns existing E2E diagnostic files in stable order'
     writeFileSync(paths.logPath('preview-proxy.log'), 'proxy log\n');
     writeFileSync(paths.logPath('backend.log'), 'backend log\n');
 
-    const artifacts = collectRunArtifacts(paths);
+    const artifacts = collectRunArtifacts(paths, [
+        'testConfig.json',
+        'preview-proxy.log',
+        'backend.log',
+    ]);
 
     assert.deepEqual(artifacts.map((artifact) => artifact.name), [
         'testConfig.json',
@@ -121,4 +150,52 @@ test('formatCleanupErrors keeps cleanup failures diagnosable', () => {
             '- proxy cleanup failed',
         ].join('\n'),
     );
+});
+
+test('runCocosE2ECase preserves the original failure when artifact attachment fails', async (t) => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'cocos-e2e-attach-mask-'));
+    t.after(() => rmSync(repoRoot, { recursive: true, force: true }));
+    const e2eCase = { ...validCase, id: 'attach-mask' };
+
+    await assert.rejects(
+        () => runCocosE2ECase({
+            page: { goto: async () => {} },
+            testInfo: {
+                attach: async () => {
+                    throw new Error('attach failed');
+                },
+            },
+            repoRoot,
+            e2eCase,
+            environment: {
+                name: 'review-env',
+                setup: async () => {
+                    throw new Error('setup failed');
+                },
+            },
+            options: {
+                tempRoot: 'temp/e2e',
+                unavailableTimeoutMs: 50,
+                automation: { summaryUrl: 'http://127.0.0.1:1/summary' },
+                previewProxy: { testConfigUrl: 'http://127.0.0.1:1/testConfig.json' },
+            },
+        }),
+        /setup failed/,
+    );
+
+    const cleanupLog = readFileSync(resolve(repoRoot, 'temp/e2e/attach-mask/cleanup.log'), 'utf8');
+    assert.match(cleanupLog, /artifactAttachError=attach failed/);
+});
+
+test('waitForProcessExit reports timeout without marking the process exited', async () => {
+    const child = new EventEmitter();
+    child.exitCode = null;
+    child.signalCode = null;
+
+    assert.deepEqual(await waitForProcessExit(child, 1), {
+        exited: false,
+        timedOut: true,
+        exitCode: null,
+        signalCode: null,
+    });
 });

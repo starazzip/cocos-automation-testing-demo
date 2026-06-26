@@ -40,4 +40,4 @@ npm install
 
 ## 用途
 
-此 extension 提供 `db://automation-framework/runtime/test-framework.mjs`，讓 `assets/slot-e2e.test.ts` 可以透過 Cocos automation-testing 執行 E2E 測試。
+此 extension 提供 `db://automation-framework/runtime/test-framework.mjs`，讓 `assets/e2e/*.test.ts` 可以透過 Cocos automation-testing 執行 E2E 測試。

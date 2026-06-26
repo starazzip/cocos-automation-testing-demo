@@ -6,7 +6,14 @@ import { createPreviewBundlePatterns, discoverE2ECases } from './e2e/case-discov
 
 const previewRoot = resolve(process.env.COCOS_PREVIEW_ROOT || 'temp/programming/packer-driver/targets/preview');
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const fallbackPatterns = ['slot-e2e.test.ts', 'slot_forced_spin_e2e', 'slot_credit_in_out_e2e'];
+const fallbackPatterns = [
+    'e2e/credit-in-out.test.ts',
+    'e2e/forced-spin.test.ts',
+    'e2e/frontend-only-spin.test.ts',
+    'slot_credit_in_out_e2e',
+    'slot_forced_spin_e2e',
+    'slot_frontend_only_spin_e2e',
+];
 
 export async function waitForPreviewBundle(options = {}) {
     const patterns = options.patterns || process.argv.slice(2);

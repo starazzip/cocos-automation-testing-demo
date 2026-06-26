@@ -1,19 +1,19 @@
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
 import { createPreviewBundlePatterns, discoverE2ECases } from './case-discovery.mjs';
 
 test('discoverE2ECases loads distributed case metadata in deterministic id order', (t) => {
     const repoRoot = createFixtureProject(t);
-    writeAsset(repoRoot, 'slot-e2e.test.ts');
+    writeAsset(repoRoot, 'e2e/slot-e2e.test.ts');
     writeCase(repoRoot, 'z.case.json', {
         id: 'z-case',
         title: 'Z case',
         automation: {
-            scriptName: 'slot-e2e.test.ts',
+            scriptName: 'e2e/slot-e2e.test.ts',
             className: 'z_e2e',
         },
         tags: ['z'],
@@ -22,7 +22,7 @@ test('discoverE2ECases loads distributed case metadata in deterministic id order
         id: 'a-case',
         title: 'A case',
         automation: {
-            scriptName: 'slot-e2e.test.ts',
+            scriptName: 'e2e/slot-e2e.test.ts',
             classNames: ['a_e2e'],
         },
         fixture: {
@@ -41,7 +41,7 @@ test('discoverE2ECases loads distributed case metadata in deterministic id order
     const cases = discoverE2ECases(repoRoot);
 
     assert.deepEqual(cases.map((e2eCase) => e2eCase.id), ['a-case', 'z-case']);
-    assert.equal(cases[0].scriptName, 'slot-e2e.test.ts');
+    assert.equal(cases[0].scriptName, 'e2e/slot-e2e.test.ts');
     assert.deepEqual(cases[0].classNames, ['a_e2e']);
     assert.deepEqual(cases[0].fixture, { adapter: 'frontend-only' });
     assert.equal(cases[0].sourcePath, 'tests/e2e/cases/a.case.json');
@@ -50,7 +50,7 @@ test('discoverE2ECases loads distributed case metadata in deterministic id order
 
 test('discoverE2ECases rejects duplicate ids with file context', (t) => {
     const repoRoot = createFixtureProject(t);
-    writeAsset(repoRoot, 'slot-e2e.test.ts');
+    writeAsset(repoRoot, 'e2e/slot-e2e.test.ts');
     writeCase(repoRoot, 'one.case.json', validCase({ id: 'same-id', className: 'one_e2e' }));
     writeCase(repoRoot, 'two.case.json', validCase({ id: 'same-id', className: 'two_e2e' }));
 
@@ -62,12 +62,12 @@ test('discoverE2ECases rejects duplicate ids with file context', (t) => {
 
 test('discoverE2ECases rejects missing required automation fields', (t) => {
     const repoRoot = createFixtureProject(t);
-    writeAsset(repoRoot, 'slot-e2e.test.ts');
+    writeAsset(repoRoot, 'e2e/slot-e2e.test.ts');
     writeCase(repoRoot, 'broken.case.json', {
         id: 'broken',
         title: 'Broken',
         automation: {
-            scriptName: 'slot-e2e.test.ts',
+            scriptName: 'e2e/slot-e2e.test.ts',
         },
     });
 
@@ -93,7 +93,7 @@ test('discoverE2ECases rejects metadata pointing at a missing Cocos script', (t)
 
 test('discoverE2ECases rejects invalid fixture metadata', (t) => {
     const repoRoot = createFixtureProject(t);
-    writeAsset(repoRoot, 'slot-e2e.test.ts');
+    writeAsset(repoRoot, 'e2e/slot-e2e.test.ts');
     writeCase(repoRoot, 'broken-fixture.case.json', {
         ...validCase(),
         fixture: {},
@@ -120,18 +120,18 @@ test('createPreviewBundlePatterns includes scripts and automation class names on
         {
             id: 'one',
             title: 'One',
-            scriptName: 'slot-e2e.test.ts',
+            scriptName: 'e2e/slot-e2e.test.ts',
             className: 'one_e2e',
         },
         {
             id: 'two',
             title: 'Two',
-            scriptName: 'slot-e2e.test.ts',
+            scriptName: 'e2e/slot-e2e.test.ts',
             classNames: ['two_e2e'],
         },
     ]);
 
-    assert.deepEqual(patterns, ['one_e2e', 'slot-e2e.test.ts', 'two_e2e']);
+    assert.deepEqual(patterns, ['e2e/slot-e2e.test.ts', 'one_e2e', 'two_e2e']);
 });
 
 function createFixtureProject(t) {
@@ -144,7 +144,9 @@ function createFixtureProject(t) {
 }
 
 function writeAsset(repoRoot, name) {
-    writeFileSync(resolve(repoRoot, 'assets', name), '');
+    const targetPath = resolve(repoRoot, 'assets', name);
+    mkdirSync(dirname(targetPath), { recursive: true });
+    writeFileSync(targetPath, '');
 }
 
 function writeCase(repoRoot, fileName, content) {
@@ -156,7 +158,7 @@ function validCase(overrides = {}) {
         id: overrides.id ?? 'case-id',
         title: overrides.title ?? `Case ${overrides.id ?? 'case-id'}`,
         automation: {
-            scriptName: overrides.scriptName ?? 'slot-e2e.test.ts',
+            scriptName: overrides.scriptName ?? 'e2e/slot-e2e.test.ts',
             className: overrides.className ?? 'case_e2e',
         },
         tags: overrides.tags,
