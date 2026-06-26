@@ -18,7 +18,7 @@ const DEFAULT_RUN_ARTIFACT_FILES = [
     'testConfig.json',
     'automation-server.log',
     'preview-proxy.log',
-    'cocos-rebuild-preview.log',
+    'preview-prepare.log',
     'backend.log',
     'cleanup.log',
 ];
@@ -167,11 +167,11 @@ export async function runCocosE2ECase({
         }));
         await waitForHttp(settings.previewProxy.testConfigUrl, settings.previewProxy.startupTimeoutMs);
 
-        if (process.env[settings.preview.rebuildSkipEnv] !== '1') {
-            await runCommand(settings.preview.rebuildCommand, settings.preview.rebuildArgs, {
+        if (settings.preview.prepareCommand && process.env[settings.preview.prepareSkipEnv] !== '1') {
+            await runCommand(settings.preview.prepareCommand, settings.preview.prepareArgs, {
                 cwd: repoRoot,
-                logPath: runPaths.logPath(settings.preview.rebuildLogFile),
-                timeoutMs: settings.preview.rebuildTimeoutMs,
+                logPath: runPaths.logPath(settings.preview.prepareLogFile),
+                timeoutMs: settings.preview.prepareTimeoutMs,
             });
         }
 
@@ -540,11 +540,11 @@ function createRunnerSettings(options) {
             ...(options.previewProxy ?? {}),
         },
         preview: {
-            rebuildCommand: 'npm',
-            rebuildArgs: ['run', 'cocos:rebuild-preview'],
-            rebuildSkipEnv: 'E2E_SKIP_REBUILD',
-            rebuildLogFile: 'cocos-rebuild-preview.log',
-            rebuildTimeoutMs: 90000,
+            prepareCommand: undefined,
+            prepareArgs: [],
+            prepareSkipEnv: 'E2E_SKIP_PREVIEW_PREPARE',
+            prepareLogFile: 'preview-prepare.log',
+            prepareTimeoutMs: 90000,
             gotoTimeoutMs: 30000,
             urlParams: {},
             ...(options.preview ?? {}),

@@ -1,6 +1,4 @@
-import { resolve } from 'node:path';
-
-export const DEFAULT_ENVIRONMENT_ADAPTER = 'demo-backend';
+export const DEFAULT_ENVIRONMENT_ADAPTER = 'frontend-only';
 
 export function normalizeEnvironmentAdapter(adapter = {}) {
     if (!adapter || typeof adapter !== 'object' || Array.isArray(adapter)) {
@@ -78,42 +76,12 @@ export async function teardownEnvironmentAdapter(adapter, context) {
     }
 }
 
-export function createDemoBackendAdapter(options = {}) {
-    const host = options.host ?? '127.0.0.1';
-    const port = options.port ?? 8080;
-    const healthUrl = `http://${host}:${port}/healthz`;
-    return normalizeEnvironmentAdapter({
-        name: options.name ?? 'demo-backend',
-        unavailableUrls: [healthUrl],
-        async setup({ repoRoot, runPaths, startManagedProcess, waitForHttp }) {
-            startManagedProcess('go', ['run', './cmd/server'], {
-                cwd: resolve(repoRoot, 'server'),
-                env: {
-                    SLOT_ADDR: `${host}:${port}`,
-                    SLOT_DB_PATH: resolve(runPaths.runDir, 'slot.db'),
-                    SLOT_TEST_MODE: '1',
-                },
-                logPath: runPaths.logPath('backend.log'),
-            });
-            await waitForHttp(healthUrl, options.startupTimeoutMs ?? 30000);
-        },
-    });
-}
-
 export function createFrontendOnlyAdapter(options = {}) {
     return normalizeEnvironmentAdapter({
         name: options.name ?? 'frontend-only',
-        previewUrlParams: {
-            slotFixture: options.fixtureName ?? 'frontend-only',
-        },
+        testConfig: options.testConfig,
+        previewUrlParams: options.previewUrlParams ?? (options.fixtureName ? { e2eFixture: options.fixtureName } : {}),
     });
-}
-
-export function createSlotEnvironmentAdapters() {
-    return {
-        'demo-backend': createDemoBackendAdapter(),
-        'frontend-only': createFrontendOnlyAdapter(),
-    };
 }
 
 function normalizeStringArray(value, field) {

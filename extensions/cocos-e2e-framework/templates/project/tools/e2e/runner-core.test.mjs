@@ -20,27 +20,27 @@ import {
 } from './runner-core.mjs';
 
 const validCase = {
-    id: 'forced-spin',
-    title: 'forced board spin payout',
-    scriptName: 'e2e/forced-spin.test.ts',
-    className: 'slot_forced_spin_e2e',
+    id: 'sample-case',
+    title: 'sample case',
+    scriptName: 'e2e/sample-case.test.ts',
+    className: 'sample_case_e2e',
 };
 
 test('createAutomationTestConfig maps a case to Cocos automation testConfig', () => {
     const config = createAutomationTestConfig(validCase, {
-        jobPrefix: 'slot-e2e',
+        jobPrefix: 'cocos-e2e',
         localServer: { port: 8123 },
     });
 
-    assert.equal(config.jobId, 'slot-e2e-forced-spin');
+    assert.equal(config.jobId, 'cocos-e2e-sample-case');
     assert.equal(config.localServer.port, 8123);
     assert.deepEqual(config.platforms, [
         {
             platformIndex: 0,
             testScripts: [
                 {
-                    scriptName: 'e2e/forced-spin.test.ts',
-                    classNames: ['slot_forced_spin_e2e'],
+                    scriptName: 'e2e/sample-case.test.ts',
+                    classNames: ['sample_case_e2e'],
                 },
             ],
         },
@@ -49,7 +49,7 @@ test('createAutomationTestConfig maps a case to Cocos automation testConfig', ()
 
 test('validateE2ECase rejects unsafe ids and missing fields', () => {
     assert.throws(
-        () => validateE2ECase({ ...validCase, id: '../forced-spin' }),
+        () => validateE2ECase({ ...validCase, id: '../sample-case' }),
         /must only contain/,
     );
     assert.throws(
@@ -62,7 +62,7 @@ test('createRunPaths keeps per-case artifacts under the temp root', () => {
     const repoRoot = resolve('repo');
     const paths = createRunPaths(repoRoot, validCase);
 
-    assert.equal(paths.runDir, resolve(repoRoot, 'temp/vscode-e2e/forced-spin'));
+    assert.equal(paths.runDir, resolve(repoRoot, 'temp/vscode-e2e/sample-case'));
     assert.equal(paths.testConfigPath, resolve(paths.runDir, 'testConfig.json'));
     assert.equal(paths.logPath('backend.log'), resolve(paths.runDir, 'backend.log'));
 });
@@ -93,10 +93,10 @@ test('createPreviewUrl carries automation and optional visual mode', () => {
     assert.equal(createPreviewUrl('http://127.0.0.1:7457', { visualMode: true }), 'http://127.0.0.1:7457?automation=1&visual=1');
     assert.equal(
         createPreviewUrl('http://127.0.0.1:7457', {
-            urlParams: { slotFixture: 'frontend-only' },
+            urlParams: { e2eFixture: 'frontend-only' },
             visualMode: true,
         }),
-        'http://127.0.0.1:7457?automation=1&slotFixture=frontend-only&visual=1',
+        'http://127.0.0.1:7457?automation=1&e2eFixture=frontend-only&visual=1',
     );
 });
 

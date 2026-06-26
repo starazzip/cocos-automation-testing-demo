@@ -1,146 +1,193 @@
 # Cocos E2E Framework
 
-這是一套給 Cocos Creator 專案使用的 E2E 測試框架。目標是讓開發者可以用 Cocos Creator extension 導入測試工具、用分檔 metadata 管理測項、用 Cocos automation 執行遊戲內 assertion，並由 Playwright 負責啟動環境、開瀏覽器、串接 VS Code Test Explorer 與收集失敗診斷。
+給 Cocos Creator 專案使用的 E2E 測試框架。
 
-本 repo 內的 slot 遊戲與 Go backend 只是 demo fixture，用來驗證框架可以處理真實專案常見的前端、後端與 deterministic 測試情境。它們不是框架的必要條件。
+Playwright 負責啟動測試環境、開瀏覽器、收集 artifact；Cocos automation class 負責遊戲內操作與 assertion。測項採分檔管理，一個 case 對一個 metadata 與一個 Cocos test class。
 
-## 你會得到什麼
+## 專案結構
 
-- `extensions/cocos-e2e-framework/`：Cocos Creator extension，提供初始化、建立測項、重新整理索引、檢查設定。
-- `extensions/automation-framework/`：被導入到目標專案的 Cocos automation runtime extension。
-- `tools/e2e/runner-core.mjs`：共用 runner，負責 automation server、Preview proxy、Cocos refresh/rebuild、artifact 與 cleanup。
-- `tests/e2e/cases/*.case.json`：分檔測項 metadata，一個 case 一個檔案，避免集中在大型 registry。
-- `tools/e2e/environment-adapters.mjs`：可替換的環境 adapter contract，支援 frontend-only、demo backend 或專案自訂後端。
-- `tests/e2e/cocos-e2e.spec.mjs`：Playwright Test Explorer 入口；本 repo 的 demo 也使用同一入口檔名。
+| 區塊 | 位置 | 角色 |
+| --- | --- | --- |
+| Cocos 前端 | `assets/`、`assets/scripts/`、`assets/main.scene` | slot demo 遊戲 |
+| Go 後端 | `server/` | WebSocket demo backend |
+| E2E 框架 | `extensions/cocos-e2e-framework/`、`extensions/automation-framework/`、`tools/e2e/`、`tests/e2e/`、`assets/e2e/` | 測試工具、runner、case metadata、Cocos automation class |
 
-## 快速開始
+slot 遊戲與 Go backend 是本 repo 的 demo fixture。導入其他專案時，framework 預設只提供 `frontend-only`，後端整合由專案自己的 adapter 擴充。
 
-以下流程以「把框架導入既有 Cocos Creator 3.8.x 專案」為目標。若你是在維護本 repo，請使用下方「本 Repo 的 Demo 驗證」流程，不要在 repo root 執行初始化或建立教學測項，避免產生 scaffold 檔案污染 demo baseline。
+## 如何使用這個 E2E Framework
 
-1. 將 extension 放進目標專案：
+以下是把框架導入既有 Cocos Creator 3.8.x 專案的流程。
+
+1. 複製 extension：
 
 ```text
 <your-cocos-project>/extensions/cocos-e2e-framework/
 ```
 
-2. 用 Cocos Creator 開啟目標專案，確認主選單有：
+2. 用 Cocos Creator 開啟專案。
 
-```text
-Extension > Cocos E2E Framework
-```
-
-3. 初始化框架。
+3. 初始化：
 
 ```text
 Extension > Cocos E2E Framework > 初始化 Framework
 ```
 
-初始化會建立或補齊：
+初始化會補齊：
 
-- `playwright.config.mjs`
-- `tools/automation-server.mjs`
-- `tools/cocos-preview-proxy.mjs`
-- `tools/cocos-rebuild-preview.mjs`
-- `tools/wait-cocos-preview-bundle.mjs`
-- `tools/e2e/*.mjs`
-- `tests/e2e/cocos-e2e.spec.mjs`
-- `tests/e2e/cases/_template.case.json`
-- `tools/e2e/project-environment-adapters.mjs`
-- `assets/e2e/_template-e2e.test.ts`
-- `extensions/automation-framework/`
+```text
+playwright.config.mjs
+tools/automation-server.mjs
+tools/cocos-preview-proxy.mjs
+tools/wait-cocos-preview-bundle.mjs
+tools/e2e/
+tests/e2e/cocos-e2e.spec.mjs
+tests/e2e/cases/_template.case.json
+tools/e2e/project-environment-adapters.mjs
+assets/e2e/_template-e2e.test.ts
+extensions/automation-framework/
+```
 
-4. 安裝依賴與 Playwright browser：
+4. 安裝依賴：
 
 ```powershell
 npm install
 npx playwright install chromium
 ```
 
-5. 開啟 Cocos Preview，並啟動 Cocos MCP server。
-
-預設位址：
-
-- Cocos Preview：`http://127.0.0.1:7456`
-- Cocos MCP：`http://127.0.0.1:3000/mcp`
-- E2E automation server：`127.0.0.1:8000`
-- E2E preview proxy：`127.0.0.1:7457`
-- demo backend adapter：`127.0.0.1:8080`
-
-6. 檢查設定：
+5. 檢查設定：
 
 ```text
 Extension > Cocos E2E Framework > 檢查設定
 ```
 
-Cocos Creator Console 應顯示 `checkSetup: ok=true`。
+Console 應顯示：
 
-7. 列出測項：
+```text
+checkSetup: ok=true
+```
+
+## 目標專案本地執行 E2E
+
+1. 用 Cocos Creator 開啟專案。
+
+2. 讓 assets refresh 完成。
+
+3. 在 Cocos Creator 內按 Preview / 預覽。
+
+4. 確認遊戲可開啟：
+
+```text
+http://127.0.0.1:7456
+```
+
+5. 確認 Preview bundle 包含測項：
+
+```powershell
+npm run cocos:wait-preview
+```
+
+6. 列出測項：
 
 ```powershell
 npx playwright test --list
 ```
 
-8. 執行 E2E：
+7. 執行全部測項：
 
 ```powershell
 npm run test:e2e
 ```
 
-如果已確認 Preview bundle 是最新，可以略過 rebuild：
+8. 執行單一測項：
 
 ```powershell
-$env:E2E_SKIP_REBUILD="1"
-npm run test:e2e
+npx playwright test -g "<case title>"
 ```
 
-## 新增一個 Frontend-Only 測項
+9. 需要觀看自動操作畫面時，開啟 visual mode：
 
-frontend-only 測項適合無法修改或啟動後端時使用。它只透過前端測試控制點、mock transport 或 client adapter 建立 deterministic 狀態。
+```powershell
+$env:E2E_VISUAL="1"
+$env:E2E_HOLD_MS="3000"
+npx playwright test -g "<case title>" --headed
+```
 
-以下步驟請在要導入框架的目標 Cocos 專案中操作；不要在本 repo root 建立這個教學測項。
+`E2E_HOLD_MS` 控制測試結束後保留視窗的時間，單位是毫秒。
 
-1. 在 Cocos Creator 中建立測項：
+常用指令：
+
+| 目的 | 指令 |
+| --- | --- |
+| 列出全部測項 | `npx playwright test --list` |
+| 執行全部 E2E | `npm run test:e2e` |
+| 執行單一測項 | `npx playwright test -g "<case title>"` |
+| 觀看全部 E2E | `$env:E2E_VISUAL="1"; $env:E2E_HOLD_MS="3000"; npx playwright test --headed` |
+| 觀看單一測項 | `$env:E2E_VISUAL="1"; $env:E2E_HOLD_MS="3000"; npx playwright test -g "<case title>" --headed` |
+| 開啟 Playwright UI | `npm run test:e2e:ui` |
+
+失敗時看：
+
+```text
+test-results/
+temp/vscode-e2e/<case-id>/
+```
+
+## 站點與 Port
+
+| 站點 | 預設位址 | 啟動者 | 用途 |
+| --- | --- | --- | --- |
+| Cocos Preview | `http://127.0.0.1:7456` | 使用者 | 遊戲預覽頁 |
+| E2E automation server | `http://127.0.0.1:8000` | runner | 接收 Cocos automation summary / log |
+| E2E preview proxy | `http://127.0.0.1:7457` | runner | 代理 Preview，注入單條 case config |
+| Backend fixture | 由專案 adapter 決定；本 repo demo 使用 `http://127.0.0.1:8080` | 使用者或 adapter | 可選的後端 fixture |
+
+## 持續擴充測項
+
+每個測項固定由兩個檔案組成：
+
+```text
+tests/e2e/cases/<case-id>.case.json
+assets/e2e/<case-id>.test.ts
+```
+
+命名規則：
+
+| 欄位 | 規則 |
+| --- | --- |
+| `id` | 穩定、短、kebab-case |
+| `title` | 給 Test Explorer / Playwright 顯示 |
+| `automation.scriptName` | 指向 `assets/` 底下的 test script |
+| `automation.className` | 對應 `@testClass()` |
+| `fixture.adapter` | 預設 `frontend-only`，或專案在 `project-environment-adapters.mjs` 註冊的 adapter |
+
+新增流程：
+
+以下範例以本 repo 的 slot demo 為例。導入其他 Cocos 專案時，請換成自己的 scene、節點名稱與 assertion。
+
+1. 建立測項範本：
 
 ```text
 Extension > Cocos E2E Framework > 建立 E2E 測項
 ```
 
-2. 產生的 metadata 會在：
-
-```text
-tests/e2e/cases/new-e2e-case.case.json
-```
-
-將內容調整成一個「按下按鈕後檢查文字」的 frontend-only 測項：
+2. 改名並調整 metadata。
 
 ```json
 {
-  "id": "new-e2e-case",
-  "title": "button click updates text",
+  "id": "demo-button",
+  "title": "demo button updates text",
   "automation": {
-    "scriptName": "e2e/new-e2e-case.test.ts",
-    "className": "new_e2e_case"
+    "scriptName": "e2e/demo-button.test.ts",
+    "className": "demo_button_e2e"
   },
   "fixture": {
     "adapter": "frontend-only"
   },
-  "tags": ["sample"]
+  "tags": ["demo"]
 }
 ```
 
-3. Cocos automation class 會在：
-
-```text
-assets/e2e/new-e2e-case.test.ts
-```
-
-假設場景中有：
-
-- `StartButton`：含 `Button` component。
-- `StatusLabel`：含 `Label` component。
-- 按下 `StartButton` 後，遊戲邏輯會把 `StatusLabel.string` 改成 `Started`。
-
-把 automation class 改成：
+3. 撰寫 `assets/e2e/demo-button.test.ts`。
 
 ```ts
 import { Button, director, Label, Node } from 'cc';
@@ -148,69 +195,93 @@ import { Button, director, Label, Node } from 'cc';
 import { expect, runScene, testCase, testClass, waitForNextFrame } from 'db://automation-framework/runtime/test-framework.mjs';
 
 @runScene('main')
-@testClass('new_e2e_case')
-export class NewE2ECase {
+@testClass('demo_button_e2e')
+export class DemoButtonE2E {
     @testCase
-    async buttonClickUpdatesText() {
+    async clickButtonAndReadLabel() {
         await waitForNextFrame();
 
-        const buttonNode = findNode('StartButton');
+        const buttonNode = findNode('CreditInButton');
         const button = buttonNode.getComponent(Button);
-        expect(button, 'StartButton should have Button').to.not.equal(null);
+        expect(button).to.not.equal(null);
 
         buttonNode.emit(Button.EventType.CLICK, button);
         await waitForNextFrame();
 
-        const statusLabel = findNode('StatusLabel').getComponent(Label);
-        expect(statusLabel, 'StatusLabel should have Label').to.not.equal(null);
-        expect(statusLabel!.string).to.equal('Started');
+        const label = findNode('BalanceLabel').getComponent(Label);
+        expect(label).to.not.equal(null);
+        expect(label!.string).to.equal('BALANCE 100');
     }
 }
 
 function findNode(name: string): Node {
     const scene = director.getScene();
-    expect(scene, 'scene should be loaded').to.not.equal(null);
+    expect(scene).to.not.equal(null);
 
     const found = findNodeRecursive(scene!, name);
-    expect(found, `${name} should exist`).to.not.equal(null);
+    expect(found).to.not.equal(null);
     return found!;
 }
 
 function findNodeRecursive(node: Node, name: string): Node | null {
-    if (node.name === name) {
-        return node;
-    }
+    if (node.name === name) return node;
     for (const child of node.children) {
         const found = findNodeRecursive(child, name);
-        if (found) {
-            return found;
-        }
+        if (found) return found;
     }
     return null;
 }
 ```
 
-4. 重新整理測項索引：
+4. 重新整理索引：
 
 ```text
 Extension > Cocos E2E Framework > 重新整理測項索引
 ```
 
-5. 確認 Test Explorer / Playwright 看得到新測項：
+5. 確認測項存在：
 
 ```powershell
 npx playwright test --list
 ```
 
-6. 執行單條測項：
+6. 執行單條：
 
 ```powershell
-npx playwright test -g "button click updates text"
+npx playwright test -g "demo button updates text"
 ```
 
-## Backend Adapter 寫法
+本 repo 已有範例：
 
-框架核心不綁定 Go、WebSocket 或任何特定後端。每個 case 用 `fixture.adapter` 選擇 adapter。新專案初始化後，預設只有 `frontend-only`：
+| Case | Metadata | Cocos test |
+| --- | --- | --- |
+| credit in/out | `tests/e2e/cases/credit-in-out.case.json` | `assets/e2e/credit-in-out.test.ts` |
+| forced spin | `tests/e2e/cases/forced-spin.case.json` | `assets/e2e/forced-spin.test.ts` |
+| frontend-only spin | `tests/e2e/cases/frontend-only-spin.case.json` | `assets/e2e/frontend-only-spin.test.ts` |
+
+Demo helper 在：
+
+```text
+assets/e2e/slot-test-helpers.ts
+```
+
+## Backend Adapter
+
+每條 case 用 `fixture.adapter` 選擇環境。
+
+`fixture.adapter` 的值必須等於 `createProjectEnvironmentAdapters()` 回傳物件的 key。初始化後只有 `frontend-only`；需要後端時，在 `tools/e2e/project-environment-adapters.mjs` 加一個 adapter。
+
+frontend-only：
+
+```json
+{
+  "fixture": {
+    "adapter": "frontend-only"
+  }
+}
+```
+
+預設 registry：
 
 ```js
 import {
@@ -227,7 +298,44 @@ export function createProjectEnvironmentAdapters() {
 }
 ```
 
-如果專案可以啟動測試後端，可以在 `tools/e2e/project-environment-adapters.mjs` 增加自己的 adapter：
+如果前端需要 query param 切換測試 fixture：
+
+```js
+export function createProjectEnvironmentAdapters() {
+    return {
+        'frontend-only': createFrontendOnlyAdapter({
+            previewUrlParams: {
+                e2eFixture: 'frontend-only',
+            },
+        }),
+    };
+}
+```
+
+使用既有後端：
+
+```js
+import {
+    createFrontendOnlyAdapter,
+    resolveEnvironmentAdapter,
+} from './environment-adapters.mjs';
+
+export { resolveEnvironmentAdapter };
+
+export function createProjectEnvironmentAdapters() {
+    return {
+        'frontend-only': createFrontendOnlyAdapter(),
+        'external-backend': {
+            name: 'external-backend',
+            async setup({ waitForHttp }) {
+                await waitForHttp('http://127.0.0.1:8080/healthz', 30000);
+            },
+        },
+    };
+}
+```
+
+由 runner 啟動後端：
 
 ```js
 import {
@@ -255,40 +363,73 @@ export function createProjectEnvironmentAdapters() {
 }
 ```
 
-對應 case metadata：
+`unavailableUrls` 表示該 port 必須由 runner 管理。若後端已由外部啟動，請使用前一個 external backend 寫法。
+
+本 repo 的 `demo-backend` 只是 adapter 擴充範例，實作位置在：
+
+```text
+tools/e2e/project-environment-adapters.mjs
+```
+
+它會先檢查 `http://127.0.0.1:8080/healthz`。如果已可連線，直接使用現有後端；如果不可連線，runner 會啟動本 repo 的 Go demo backend。forced-board demo 需要 test mode，`npm run demo:backend` 會用 `SLOT_TEST_MODE=1` 啟動。
+
+使用既有後端時，case 指向 `external-backend`：
 
 ```json
 {
-  "id": "backend-spin",
-  "title": "backend spin",
-  "automation": {
-    "scriptName": "e2e/backend-spin.test.ts",
-    "className": "backend_spin_e2e"
-  },
   "fixture": {
-    "adapter": "my-backend"
-  },
-  "tags": ["backend"]
+    "adapter": "external-backend"
+  }
 }
 ```
 
-本 repo 的 `demo-backend` adapter 只示範如何啟動 Go demo server。真實專案應用自己的 adapter 表達啟動、health check、deterministic response 與 cleanup。
+由 runner 啟動後端時，case 指向 `my-backend`：
+
+```json
+{
+  "fixture": {
+    "adapter": "my-backend"
+  }
+}
+```
 
 ## VS Code Test Explorer
 
-安裝 VS Code 的 `Playwright Test for VSCode` extension 後，Playwright 會從 `tests/e2e/*.spec.mjs` 讀取 case，顯示為：
+安裝 VS Code extension：
+
+```text
+Playwright Test for VSCode
+```
+
+測項會顯示為：
 
 ```text
 Cocos E2E: <case title>
 ```
 
-每條測項都來自 `tests/e2e/cases/*.case.json`。`tools/e2e/case-discovery.mjs` 會忽略 `_template.case.json`，並檢查 `automation.scriptName` 指向的 Cocos automation script 是否存在。
+更多說明：
 
-更多 Test Explorer 細節見 `tools/e2e-test-explorer.md`。
+```text
+tools/e2e-test-explorer.md
+```
 
-## 本 Repo 的 Demo 驗證
+## 本 Repo Demo 驗證
 
-這些命令驗證目前 slot demo、frontend-only case、demo backend adapter 與 runner cleanup：
+執行前先開 Cocos Creator Preview。
+
+若要手動打開 Preview 操作本 repo 的 slot demo，先啟動後端：
+
+```powershell
+npm run demo:backend
+```
+
+成功時會看到：
+
+```text
+listening on :8080, websocket /ws, test mode true
+```
+
+只跑 E2E 時可以略過這步。`demo-backend` adapter 會在 `8080` 沒有服務時自動啟動本 repo 的 Go demo backend；如果 `8080` 已有服務，則直接使用既有後端。
 
 ```powershell
 npm run test:e2e:unit
@@ -298,19 +439,73 @@ npx playwright test -g "forced board spin payout"
 npm run test:e2e
 ```
 
-執行 E2E 前請確認 Cocos Creator 已開啟、Preview 已啟動、Cocos MCP server 已啟動，且 `8000`、`7457`、`8080` 沒被其他服務占用。
-
-## 限制
-
-- MVP 交付形式是 Cocos Creator extension；目前不是 npm package。
-- 不包含雲端測試平台、完整報表系統或多裝置矩陣。
-- Playwright 負責 orchestration 與工具整合，不取代 Cocos automation 的遊戲內 assertion。
-- slot demo 與 Go backend 是 fixture，不是導入此框架的必要架構。
-
 ## 常見問題
 
-- `E2E environment adapter "... " was not found`：case 的 `fixture.adapter` 沒有在 `tools/e2e/project-environment-adapters.mjs` 註冊。
-- `Cannot reach Cocos MCP`：Cocos Creator 內的 MCP server 尚未啟動，或 `COCOS_MCP_URL` 設定錯誤。
-- Test Explorer 沒有測項：確認 `tests/e2e/cases/*.case.json` 不以 `_` 開頭，且 `automation.scriptName` 指向 `assets/` 底下存在的檔案。
-- `EADDRINUSE 127.0.0.1:8000`、`7457` 或 `8080`：測試 port 被其他 process 占用。
-- 失敗診斷：Playwright 失敗時會附上 run directory 內的 `.log`、`.json`、`.txt` artifact；cleanup 狀態可看 `temp/vscode-e2e/<case-id>/cleanup.log`。
+| 問題 | 處理方式 |
+| --- | --- |
+| `E2E environment adapter "... " was not found` | 檢查 `tools/e2e/project-environment-adapters.mjs` 是否註冊 adapter |
+| 新測項跑不到 | refresh assets，重開 Preview，再跑 `npm run cocos:wait-preview` |
+| Test Explorer 沒測項 | 檢查 `.case.json` 不以 `_` 開頭，且 `automation.scriptName` 指到存在檔案 |
+| `EADDRINUSE` | 關掉占用 `8000`、`7457`、`8080` 的 process |
+| E2E fail | 看 `test-results/` 與 `temp/vscode-e2e/<case-id>/` |
+
+## 功能表
+
+### 插件與 Runner
+
+| 功能 | 入口 | 輸出 |
+| --- | --- | --- |
+| 初始化框架 | `Extension > Cocos E2E Framework > 初始化 Framework` | 補齊 E2E 檔案與設定 |
+| 檢查設定 | `Extension > Cocos E2E Framework > 檢查設定` | Console 顯示 `checkSetup: ok=true` |
+| 建立測項 | `Extension > Cocos E2E Framework > 建立 E2E 測項` | 產生 `.case.json` 與 `.test.ts` |
+| 更新索引 | `Extension > Cocos E2E Framework > 重新整理測項索引` | Console 顯示 case 數量與 id |
+| 列出測項 | `npx playwright test --list` | 顯示 `Cocos E2E: <case title>` |
+| 執行測項 | `npm run test:e2e` | Playwright pass/fail |
+| 執行單條 | `npx playwright test -g "<title>"` | 只跑符合 title 的 case |
+| frontend-only | `"adapter": "frontend-only"` | 不執行後端 setup |
+| 自訂 backend | 註冊 `project-environment-adapters.mjs` | 依 adapter 設計等待既有服務或啟動測試服務 |
+| 失敗診斷 | `test-results/`、`temp/vscode-e2e/<case-id>/` | trace、log、config、cleanup result |
+
+### Cocos 元件操作
+
+以下範例寫在 `assets/e2e/<case-id>.test.ts`。
+
+| 功能 | 範例 |
+| --- | --- |
+| 載入場景 | `@runScene('main')` |
+| 宣告測試 class | `@testClass('demo_button_e2e')` |
+| 宣告測試 method | `@testCase async clickButton() {}` |
+| 等待下一 frame | `await waitForNextFrame();` |
+| 取得目前場景 | `const scene = director.getScene();` |
+| 依名稱找節點 | `const node = findNode('StartButton');` |
+| 取得 Button | `const button = node.getComponent(Button);` |
+| 點擊 Button | `node.emit(Button.EventType.CLICK, button);` |
+| 取得 Label | `const label = findNode('StatusLabel').getComponent(Label);` |
+| 讀取 Label 文字 | `const text = label!.string;` |
+| 檢查文字 | `expect(label!.string).to.equal('Started');` |
+| 檢查 component 存在 | `expect(button).to.not.equal(null);` |
+| 檢查數值 | `expect(score).to.equal(100);` |
+| 檢查陣列 | `expect(symbols).to.deep.equal(['A', 'A', 'A']);` |
+| 等待 async UI | `await waitForNextFrame(); await waitForNextFrame();` |
+
+可重用 helper 範例：
+
+```ts
+function findNode(name: string): Node {
+    const scene = director.getScene();
+    expect(scene).to.not.equal(null);
+
+    const found = findNodeRecursive(scene!, name);
+    expect(found).to.not.equal(null);
+    return found!;
+}
+
+function findNodeRecursive(node: Node, name: string): Node | null {
+    if (node.name === name) return node;
+    for (const child of node.children) {
+        const found = findNodeRecursive(child, name);
+        if (found) return found;
+    }
+    return null;
+}
+```

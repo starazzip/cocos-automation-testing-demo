@@ -6,7 +6,7 @@
     "className": "my_e2e_test_class"
   },
   "fixture": {
-    "adapter": "demo-backend"
+    "adapter": "frontend-only"
   },
   "tags": ["sample"]
 }

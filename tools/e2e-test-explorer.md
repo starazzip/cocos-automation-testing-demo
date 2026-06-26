@@ -11,7 +11,7 @@
 - VS Code 安裝 `Playwright Test for VSCode` extension。
 - Cocos Creator 已開啟此專案。
 - Cocos Preview 已啟動，預設位於 `http://127.0.0.1:7456`。
-- Cocos MCP server 已啟動，預設位於 `http://127.0.0.1:3000/mcp`。
+- Cocos Creator assets 已 refresh，Preview bundle 已包含最新 `assets/e2e/*.test.ts`。
 - 專案依賴已安裝：
 
 ```powershell
@@ -35,26 +35,20 @@ npx playwright test --list
 npm run test:e2e
 ```
 
-如果 Preview bundle 已確認是最新，可以略過 rebuild：
-
-```powershell
-$env:E2E_SKIP_REBUILD="1"
-npm run test:e2e
-```
+E2E runner 預設不會呼叫 Cocos Editor API 或自動 rebuild Preview；它會使用目前已啟動的 Cocos Preview bundle。
 
 ## 運作方式
 
-初始化到一般專案時，extension 會建立 `tests/e2e/cocos-e2e.spec.mjs`。本 repo 的 slot demo 也使用同名入口，差別是這份 demo spec 會註冊 sample adapter registry。
+初始化到一般專案時，extension 會建立 `tests/e2e/cocos-e2e.spec.mjs`。本 repo 的 slot demo 也使用同名入口，差別是這份 demo spec 會載入本 repo 的 project adapter registry。
 
 共用 orchestration 位於 `tools/e2e/runner-core.mjs`：
 
 - 依測項 `fixture.adapter` 選擇環境 adapter。
-- `frontend-only` 透過 automation-only query param 使用前端 deterministic fixture，不需要後端程式碼。
+- `frontend-only` 不執行後端 setup。若專案需要前端 deterministic fixture，可在 project adapter 加 `previewUrlParams`。
 - 本 repo 的 `demo-backend` 只示範如何啟動 Go demo backend。
 - 啟動 Cocos automation server。
 - 啟動 Cocos Preview proxy。
 - 產生只包含單一 automation class 的 `testConfig.json`。
-- 呼叫 Cocos MCP refresh/rebuild preview。
 - 用 Playwright 開啟 proxy URL，讓 Cocos `automation-framework` 執行真正的 E2E。
 - 讀取 automation `/summary` 判斷成功或失敗。
 

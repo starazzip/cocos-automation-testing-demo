@@ -81,7 +81,7 @@ Review notes:
 
 - 已把文件中的 list 指令統一改為 `npx playwright test --list`；驗證時發現 `npm run test:e2e -- --list` 在目前 PowerShell/npm 組合下會實際跑完整 E2E，容易誤導使用者。
 - 已修正 `smoke.md` 的臨時專案 example command，避免 PowerShell 展開 JavaScript template literal，並改用 `pathToFileURL()` 載入臨時專案中的 ESM discovery module。
-- 已明確標示 Cocos Creator、Preview、MCP server 與測試 port 前置條件。
+- 已明確標示 Cocos Creator、Preview bundle 與測試 port 前置條件。
 
 ## Wrap Up
 
@@ -124,6 +124,30 @@ Review verification:
 
 Next action: `/qdd-phase-fix 6`。
 
+### Phase Fix - Adapter Boundary Review - 2026-06-26
+
+Fixes:
+
+- 更新 `README.md`，將一般導入者的本地執行流程改成 `目標專案本地執行 E2E`，使用 generic `<case title>`，不再混入本 repo demo 專用 `demo:backend` 與 `forced board spin payout`。
+- 將本 repo demo 專用後端啟動、`demo-backend` 說明與 forced-board 驗證集中到 `本 Repo Demo 驗證`。
+- 更新 `plans/cocos-e2e-framework/smoke.md`，讓 README simple example 檢查指向實際 `持續擴充測項` 區塊，並改為 `CreditInButton` / `BalanceLabel`。
+- 更新 `extensions/cocos-e2e-framework/dist/scaffold.js`，`checkSetup()` 只接受標準 `tests/e2e/cocos-e2e.spec.mjs`。
+- 新增 unit test，確認只有 legacy `tests/e2e/cocos-slot.spec.mjs` 時 `checkSetup()` 會失敗。
+- 刪除 root `tools/cocos-rebuild-preview.mjs`，避免 framework surface 殘留 Cocos MCP 工具。
+
+Verification:
+
+- `node --check extensions/cocos-e2e-framework/dist/scaffold.js`：通過。
+- `npm run test:e2e:unit`：通過，37 tests passed。
+- `node --test extensions/cocos-e2e-framework/templates/project/tools/e2e/*.test.mjs`：通過，24 tests passed。
+- `npx playwright test --list`：通過，3 tests in 1 file。
+- `npm run test:e2e`：通過，3 passed。
+- `Test-NetConnection 127.0.0.1 -Port 8000/7457/8080 -InformationLevel Quiet`：皆為 `False`。
+- `rg -n "Cocos MCP|COCOS_MCP|cocos-rebuild-preview" README.md extensions/cocos-e2e-framework tools package.json tests/e2e tools/e2e -S`：no matches。
+- `git diff --check`：通過。
+
+Next action: `/qdd-review 6`。
+
 ### Phase Fix After Review - 2026-06-26
 
 Fixes:
@@ -150,6 +174,24 @@ Fix verification:
 - `git diff --check`：通過。
 
 Next action: `/qdd-review 6`。
+
+### Independent Review - Adapter Boundary Cleanup - 2026-06-26
+
+Findings:
+
+1. `README.md` 的 `本地執行 E2E` 區塊接在「如何使用這個 E2E Framework」之後，但內容混入本 repo demo 專用步驟：`npm run demo:backend`、`demo-backend`、`forced board spin payout`。第一次導入到目標專案的使用者可能會照做不存在的 `demo:backend` script，或誤以為 demo backend 是一般導入流程的一部分。建議把此段改名為「本 Repo Demo 本地執行 E2E」，或拆出一段真正的目標專案本地執行流程。
+2. `plans/cocos-e2e-framework/smoke.md` 與目前 `README.md` 已 drift：smoke 第 4 步仍指向 `README.md > 新增一個 Frontend-Only 測項`，並期待 `StartButton` / `StatusLabel`；目前 README 對應區塊是 `持續擴充測項`，範例節點是 `CreditInButton` / `BalanceLabel`。人工 smoke 會照到不存在的標題與不一致的範例。
+3. `extensions/cocos-e2e-framework/dist/scaffold.js` 的 `checkSetup()` 仍接受 `tests/e2e/cocos-slot.spec.mjs` 作為有效 Playwright spec，但 phase 6 與 smoke 已把 `cocos-e2e.spec.mjs` 視為唯一標準入口，且 smoke 將 `cocos-slot.spec.mjs` 出現在 test list 視為 failure signal。這會讓舊 wrapper 殘留時 setup check 過度寬鬆。
+4. `tools/cocos-rebuild-preview.mjs` 仍保留 Cocos MCP 專用實作與錯誤訊息。它目前不在 package scripts，也不會由 extension template 複製，但仍在 root `tools/` 下，容易讓後續維護者誤認為 E2E framework 仍有 MCP 工具面。若它只是個人輔助工具，建議移出 framework repo surface 或改到明確的 private/dev-only 位置。
+
+Review verification:
+
+- `npm run test:e2e:unit`：通過，36 tests passed。
+- `npx playwright test --list`：通過，3 tests in 1 file。
+- `rg -n "demo-backend|createDemoBackendAdapter|createSlotEnvironmentAdapters|cmd/server|SLOT_|slotFixture|slot-e2e|forced-spin|credit-in-out|slot_" extensions/cocos-e2e-framework/templates/project extensions/cocos-e2e-framework/dist/scaffold.js -S`：no matches。
+- `git diff --check`：通過。
+
+Next action: `/qdd-phase-fix 6`。
 
 ### Independent Review After Fix - 2026-06-26
 
@@ -221,3 +263,88 @@ Fix:
 - 將 `tests/e2e/cocos-slot.spec.mjs` 改名為標準入口 `tests/e2e/cocos-e2e.spec.mjs`。
 - 保留 spec 內的 slot demo adapter registry，讓本 repo demo 仍可執行 `demo-backend` 與 `frontend-only` case。
 - 更新 README、Test Explorer 說明、smoke 與狀態檔，將 `cocos-e2e.spec.mjs` 視為唯一預期 spec。
+
+### Remove Cocos MCP Dependency - 2026-06-26
+
+Decision:
+
+- Cocos MCP 是個人開發前端時的輔助工具，不是此 E2E framework 的交付需求或執行依賴。
+- Framework 導入與 E2E runner 預設流程不可要求目標專案安裝或啟動 Cocos MCP。
+
+Fix:
+
+- `tools/e2e/runner-core.mjs` 預設不再執行 `npm run cocos:rebuild-preview`，也不再呼叫任何 Cocos Editor / MCP API。
+- Runner 改成 optional preview prepare hook：只有 spec 或 adapter 明確傳入 `options.preview.prepareCommand` 時才會在開啟 Preview URL 前執行命令。
+- Extension scaffold 不再複製 `tools/cocos-rebuild-preview.mjs`，也不再加入 `cocos:rebuild-preview` npm script。
+- README、extension README、Test Explorer 文件與 smoke 前置條件都改為要求使用者在 Cocos Creator 內手動 refresh assets 並確認 Preview bundle 已更新。
+- `package.json` 移除公開 `cocos:rebuild-preview` script，避免被誤認為 framework 流程。
+
+Verification:
+
+- `npm run test:e2e:unit`：通過，33 tests passed。
+- `npx playwright test --list`：通過，3 tests in 1 file。
+- `npm run test:e2e`：通過，3 passed，且 runner 未產生新的 preview rebuild log。
+- `Test-NetConnection 127.0.0.1 -Port 8000/7457/8080 -InformationLevel Quiet`：皆為 `False`。
+- `git diff --check`：通過。
+
+### Adapter Boundary Cleanup - 2026-06-26
+
+Issue:
+
+- Framework/template 層仍有本 repo demo 專用假設，例如 `demo-backend`、Go backend 啟動邏輯、`SLOT_*` 環境變數、slot case fallback pattern 與 `slotFixture`。
+- `frontend-only` 應是預設 adapter，但不應綁定 slot demo query param。
+- 開發者需要能在 `tools/e2e/project-environment-adapters.mjs` 簡單擴充自己的 fixture adapter。
+
+Fix:
+
+- `tools/e2e/environment-adapters.mjs` 改成 framework contract/helper，只保留 `frontend-only`、adapter normalize/resolve/setup/teardown。
+- 新增 `tools/e2e/project-environment-adapters.mjs`，把本 repo 的 `demo-backend` 與 demo `slotFixture` 放到專案層 registry。
+- `tests/e2e/cocos-e2e.spec.mjs` 改為載入 project adapter registry。
+- extension template 的 `environment-adapters.mjs` 與測試移除 `demo-backend`、Go backend 與 `SLOT_*`。
+- template preview helper 改用 generic fallback：`e2e/_template-e2e.test.ts`、`my_e2e_case`。
+- preview proxy 預設 config 名稱改成 `tools/testConfig.cocos-e2e.json`。
+- root/template runner 與 discovery unit test 的 sample data 改成 generic `sample-case` / `sample-e2e`。
+- root `_template.case.json` 預設 adapter 改成 `frontend-only`。
+- README 補上 `frontend-only` 預設 registry、`previewUrlParams`、external backend、runner-managed backend 與本 repo `demo-backend` 擴充範例。
+
+Verification:
+
+- `node --check tools/e2e/environment-adapters.mjs; node --check tools/e2e/project-environment-adapters.mjs; node --check extensions/cocos-e2e-framework/templates/project/tools/e2e/environment-adapters.mjs; node --check tools/wait-cocos-preview-bundle.mjs; node --check tools/cocos-preview-proxy.mjs`：通過。
+- `npm run test:e2e:unit`：通過，36 tests passed。
+- `node --test extensions/cocos-e2e-framework/templates/project/tools/e2e/*.test.mjs`：通過，24 tests passed。
+- `npx playwright test --list`：通過，3 tests in 1 file。
+- `npm run test:e2e`：通過，3 passed。
+- `Test-NetConnection 127.0.0.1 -Port 8000/7457/8080 -InformationLevel Quiet`：皆為 `False`。
+- `rg -n "demo-backend|createDemoBackendAdapter|createSlotEnvironmentAdapters|cmd/server|SLOT_|slotFixture|slot-e2e|forced-spin|credit-in-out|slot_" extensions/cocos-e2e-framework/templates/project extensions/cocos-e2e-framework/dist/scaffold.js -S`：no matches。
+- `git diff --check`：通過。
+
+Next action: `/qdd-review 6`。
+
+### Independent Review - Visual Mode Docs - 2026-06-26
+
+Findings:
+
+1. `README.md` 的 visual mode 指令使用 `E2E_VISUAL_HOLD_MS`，但 root/template runner 實際讀取的是 `E2E_HOLD_MS`。因此使用者照 README 執行時，視窗保留時間不會套用 `3000ms`，而會回到 runner 預設值。需將 README 的三處 `E2E_VISUAL_HOLD_MS` 改成 `E2E_HOLD_MS`，或調整 runner 支援 README 中的變數名稱。
+
+Review verification:
+
+- `rg -n "E2E_VISUAL_HOLD_MS|E2E_HOLD_MS|holdEnv|E2E_VISUAL" README.md extensions/cocos-e2e-framework/README.md tools/e2e/runner-core.mjs extensions/cocos-e2e-framework/templates/project/tools/e2e/runner-core.mjs plans/cocos-e2e-framework/smoke.md -S`：確認 README 使用 `E2E_VISUAL_HOLD_MS`，runner 使用 `E2E_HOLD_MS`。
+- `npm run test:e2e:unit`：通過，37 tests passed。
+- `npx playwright test --list`：通過，3 tests in 1 file。
+- `git diff --check`：通過。
+
+Next action: `/qdd-phase-fix 6`。
+
+### Phase Fix - Visual Mode Docs - 2026-06-26
+
+Fix:
+
+- 更新 `README.md` visual mode 指令，將 `E2E_VISUAL_HOLD_MS` 改成 runner 實際讀取的 `E2E_HOLD_MS`。
+
+Verification:
+
+- `rg -n "E2E_VISUAL_HOLD_MS|E2E_HOLD_MS|E2E_VISUAL" README.md tools/e2e/runner-core.mjs extensions/cocos-e2e-framework/templates/project/tools/e2e/runner-core.mjs plans/cocos-e2e-framework/smoke.md -S`：README 已不再出現 `E2E_VISUAL_HOLD_MS`，README 與 root/template runner 都使用 `E2E_HOLD_MS`。
+- `npx playwright test --list`：通過，3 tests in 1 file。
+- `git diff --check`：通過。
+
+Next action: `/qdd-review 6`。

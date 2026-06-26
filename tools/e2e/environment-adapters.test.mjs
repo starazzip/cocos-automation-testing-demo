@@ -3,9 +3,7 @@ import { resolve } from 'node:path';
 import test from 'node:test';
 
 import {
-    createDemoBackendAdapter,
     createFrontendOnlyAdapter,
-    createSlotEnvironmentAdapters,
     mergeEnvironmentAdapterOptions,
     normalizeEnvironmentAdapter,
     resolveEnvironmentAdapter,
@@ -13,11 +11,13 @@ import {
 } from './environment-adapters.mjs';
 
 test('resolveEnvironmentAdapter uses fixture adapter or the default adapter', () => {
-    const registry = createSlotEnvironmentAdapters();
+    const registry = {
+        'frontend-only': createFrontendOnlyAdapter(),
+    };
 
     assert.equal(
         resolveEnvironmentAdapter({ id: 'default-case' }, registry).name,
-        'demo-backend',
+        'frontend-only',
     );
     assert.equal(
         resolveEnvironmentAdapter({ id: 'mock-case', fixture: { adapter: 'frontend-only' } }, registry).name,
@@ -29,7 +29,7 @@ test('resolveEnvironmentAdapter rejects unknown adapters with case context', () 
     assert.throws(
         () => resolveEnvironmentAdapter(
             { id: 'broken-case', fixture: { adapter: 'missing-adapter' } },
-            createSlotEnvironmentAdapters(),
+            { 'frontend-only': createFrontendOnlyAdapter() },
         ),
         /missing-adapter.*broken-case/,
     );
@@ -53,7 +53,7 @@ test('mergeEnvironmentAdapterOptions lets caller options override adapter runtim
         },
         preview: {
             urlParams: {
-                slotFixture: 'caller-fixture',
+                e2eFixture: 'caller-fixture',
                 visualFixture: '1',
             },
         },
@@ -64,7 +64,7 @@ test('mergeEnvironmentAdapterOptions lets caller options override adapter runtim
             localServer: { timeout: 1000 },
         },
         previewUrlParams: {
-            slotFixture: 'frontend-only',
+            e2eFixture: 'frontend-only',
         },
     });
 
@@ -73,46 +73,27 @@ test('mergeEnvironmentAdapterOptions lets caller options override adapter runtim
         localServer: { timeout: 1000 },
     });
     assert.deepEqual(options.preview.urlParams, {
-        slotFixture: 'caller-fixture',
+        e2eFixture: 'caller-fixture',
         visualFixture: '1',
     });
 });
 
-test('createDemoBackendAdapter starts the demo server through the runner context', async () => {
-    const adapter = createDemoBackendAdapter({ port: 9090 });
-    const started = [];
-    const waitedUrls = [];
-    await adapter.setup({
-        repoRoot: resolve('repo'),
-        runPaths: {
-            runDir: resolve('run'),
-            logPath(fileName) {
-                return resolve('logs', fileName);
-            },
-        },
-        startManagedProcess(command, args, options) {
-            started.push({ command, args, options });
-        },
-        async waitForHttp(url) {
-            waitedUrls.push(url);
-        },
-    });
-
-    assert.equal(started.length, 1);
-    assert.equal(started[0].command, 'go');
-    assert.deepEqual(started[0].args, ['run', './cmd/server']);
-    assert.equal(started[0].options.env.SLOT_ADDR, '127.0.0.1:9090');
-    assert.equal(started[0].options.env.SLOT_TEST_MODE, '1');
-    assert.equal(started[0].options.env.SLOT_DB_PATH, resolve('run', 'slot.db'));
-    assert.deepEqual(waitedUrls, ['http://127.0.0.1:9090/healthz']);
-});
-
-test('createFrontendOnlyAdapter provides preview params and does not require setup', () => {
+test('createFrontendOnlyAdapter does not require setup or project-specific preview params', () => {
     const adapter = createFrontendOnlyAdapter();
 
     assert.deepEqual(adapter.unavailableUrls, []);
-    assert.deepEqual(adapter.previewUrlParams, { slotFixture: 'frontend-only' });
+    assert.deepEqual(adapter.previewUrlParams, {});
     assert.equal(adapter.setup, undefined);
+});
+
+test('createFrontendOnlyAdapter accepts project-specific preview params', () => {
+    const adapter = createFrontendOnlyAdapter({
+        previewUrlParams: {
+            e2eFixture: 'frontend-only',
+        },
+    });
+
+    assert.deepEqual(adapter.previewUrlParams, { e2eFixture: 'frontend-only' });
 });
 
 test('setupEnvironmentAdapter wraps setup failures with adapter name and log hint', async () => {

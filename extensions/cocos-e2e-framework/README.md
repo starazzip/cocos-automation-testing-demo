@@ -32,7 +32,6 @@ Extension > Cocos E2E Framework
 - `tools/e2e/runner-core.mjs`
 - `tools/automation-server.mjs`
 - `tools/cocos-preview-proxy.mjs`
-- `tools/cocos-rebuild-preview.mjs`
 - `tools/wait-cocos-preview-bundle.mjs`
 - `assets/e2e/_template-e2e.test.ts`
 - `extensions/automation-framework/`
@@ -58,6 +57,16 @@ Extension > Cocos E2E Framework
 ## Adapter Boundary
 
 初始化後的 `tools/e2e/project-environment-adapters.mjs` 只註冊 `frontend-only`。真實專案如果需要後端 fixture，應在該檔案加入自己的 adapter，不要把業務後端假設寫進 runner core。
+
+`frontend-only` 不執行後端 setup。若前端需要 query param 切換測試 fixture，可改成：
+
+```js
+createFrontendOnlyAdapter({
+    previewUrlParams: {
+        e2eFixture: 'frontend-only',
+    },
+});
+```
 
 Adapter 可使用 runner context：
 

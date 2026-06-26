@@ -28,7 +28,8 @@ test('initializeFramework creates project scaffold without overwriting existing 
 
     const packageJson = JSON.parse(readFileSync(resolve(projectRoot, 'package.json'), 'utf8'));
     assert.equal(packageJson.scripts['test:e2e'], 'custom e2e command');
-    assert.equal(packageJson.scripts['cocos:rebuild-preview'], 'node tools/cocos-rebuild-preview.mjs');
+    assert.equal(packageJson.scripts['cocos:rebuild-preview'], undefined);
+    assert.equal(packageJson.scripts['cocos:wait-preview'], 'node tools/wait-cocos-preview-bundle.mjs');
     assert.equal(packageJson.devDependencies['@playwright/test'], '^1.61.1');
     assert.ok(existsSync(resolve(projectRoot, 'tests/e2e/cases/_template.case.json')));
     assert.ok(existsSync(resolve(projectRoot, 'assets/e2e/_template-e2e.test.ts')));
@@ -71,6 +72,19 @@ test('checkSetup detects automation-framework runtime load failures', (t) => {
     assert.equal(result.ok, false);
     assert.ok(result.errors.some((error) => error.includes('automation-framework extension cannot load')));
     assert.ok(result.errors.some((error) => error.includes('definitely-missing-cocos-e2e-test-dependency')));
+});
+
+test('checkSetup requires the standard cocos-e2e Playwright spec name', (t) => {
+    const projectRoot = createFixtureProject(t);
+    writeFileSync(resolve(projectRoot, 'package.json'), '{}\n');
+    scaffold.initializeFramework({ projectRoot });
+    rmSync(resolve(projectRoot, 'tests/e2e/cocos-e2e.spec.mjs'));
+    writeFileSync(resolve(projectRoot, 'tests/e2e/cocos-slot.spec.mjs'), 'legacy spec\n');
+
+    const result = scaffold.checkSetup({ projectRoot });
+
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((error) => error.includes('tests/e2e/cocos-e2e.spec.mjs')));
 });
 
 test('createCase writes distributed metadata and Cocos automation class', (t) => {
@@ -125,13 +139,13 @@ test('refreshCaseIndex lists distributed case files and ignores templates', (t) 
     writeFileSync(resolve(projectRoot, 'tests/e2e/cases/a.case.json'), JSON.stringify({
         id: 'a',
         title: 'A case',
-        fixture: { adapter: 'demo-backend' },
+        fixture: { adapter: 'external-backend' },
     }));
 
     const index = scaffold.refreshCaseIndex({ projectRoot });
 
     assert.deepEqual(index.cases.map((e2eCase) => e2eCase.id), ['a', 'b']);
-    assert.deepEqual(index.cases.map((e2eCase) => e2eCase.adapter), ['demo-backend', 'frontend-only']);
+    assert.deepEqual(index.cases.map((e2eCase) => e2eCase.adapter), ['external-backend', 'frontend-only']);
 });
 
 test('checkSetup validates the current repository scaffold', () => {

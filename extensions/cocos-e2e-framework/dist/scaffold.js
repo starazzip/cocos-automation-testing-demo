@@ -11,10 +11,10 @@ const REQUIRED_FILES = [
     'playwright.config.mjs',
     'tools/automation-server.mjs',
     'tools/cocos-preview-proxy.mjs',
-    'tools/cocos-rebuild-preview.mjs',
     'tools/wait-cocos-preview-bundle.mjs',
     'tools/e2e/case-discovery.mjs',
     'tools/e2e/environment-adapters.mjs',
+    'tools/e2e/project-environment-adapters.mjs',
     'tools/e2e/runner-core.mjs',
     CASES_DIR,
     'extensions/automation-framework/package.json',
@@ -23,7 +23,6 @@ const REQUIRED_FILES = [
 ];
 
 const REQUIRED_SCRIPTS = {
-    'cocos:rebuild-preview': 'node tools/cocos-rebuild-preview.mjs',
     'cocos:wait-preview': 'node tools/wait-cocos-preview-bundle.mjs',
     'test:e2e': 'playwright test',
     'test:e2e:unit': 'node --test tools/e2e/*.test.mjs',
@@ -38,7 +37,6 @@ const FRAMEWORK_TEMPLATE_ROOT = path.resolve(__dirname, '../templates/project');
 const FRAMEWORK_FILES = [
     'tools/automation-server.mjs',
     'tools/cocos-preview-proxy.mjs',
-    'tools/cocos-rebuild-preview.mjs',
     'tools/wait-cocos-preview-bundle.mjs',
     'tools/e2e/case-discovery.mjs',
     'tools/e2e/case-discovery.test.mjs',
@@ -164,8 +162,7 @@ function checkSetup(options = {}) {
         }
     }
 
-    const e2eSpecExists = fs.existsSync(resolveProjectPath(projectRoot, 'tests/e2e/cocos-e2e.spec.mjs'))
-        || fs.existsSync(resolveProjectPath(projectRoot, 'tests/e2e/cocos-slot.spec.mjs'));
+    const e2eSpecExists = fs.existsSync(resolveProjectPath(projectRoot, 'tests/e2e/cocos-e2e.spec.mjs'));
     if (!e2eSpecExists) {
         errors.push('Missing Playwright E2E spec: tests/e2e/cocos-e2e.spec.mjs');
     }

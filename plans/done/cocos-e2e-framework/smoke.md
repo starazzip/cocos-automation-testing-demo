@@ -8,7 +8,7 @@ Final smoke - Cocos E2E Framework after Phase 06
 
 - Cocos Creator 已開啟此專案。
 - Cocos Preview 已啟動，預設為 `http://127.0.0.1:7456`。
-- Cocos MCP server 已啟動，預設為 `http://127.0.0.1:3000/mcp`。
+- Cocos Creator assets 已 refresh，Preview bundle 已包含最新 `assets/e2e/*.test.ts`。
 - 已安裝 npm dependencies。
 - 若要跑完整 E2E，`127.0.0.1:8000`、`127.0.0.1:7457`、`127.0.0.1:8080` 不能被其他服務占用。
 - 不要手動啟動 Go demo backend、automation server 或 Cocos preview proxy；E2E runner 會依測項 adapter 自動啟動與清理。
@@ -26,7 +26,7 @@ Expected:
 
 - 開頭明確說明框架目的是 Cocos E2E framework。
 - 清楚說明 slot demo 與 Go backend 只是 demo fixture，不是必要架構。
-- 快速開始包含 extension 導入、初始化、安裝依賴、啟動 Cocos Preview/MCP、列出與執行 E2E。
+- 快速開始包含 extension 導入、初始化、安裝依賴、刷新 assets、啟動 Cocos Preview、列出與執行 E2E。
 
 2. 閱讀 extension README：
 
@@ -54,13 +54,13 @@ Expected:
 4. 檢查 README simple example：
 
 ```text
-README.md > 新增一個 Frontend-Only 測項
+README.md > 持續擴充測項
 ```
 
 Expected:
 
 - 建立測項、重新整理測項索引與檢查設定都使用 `Extension > Cocos E2E Framework` menu。
-- 範例示範按下 `StartButton` 後檢查 `StatusLabel.string`。
+- 範例示範按下 `CreditInButton` 後檢查 `BalanceLabel.string`。
 - 範例使用 `Button.EventType.CLICK` 與 `Label.string`。
 - 教學不要求使用 `node -e` 建立或檢查測項。
 
