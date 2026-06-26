@@ -1,0 +1,55 @@
+{
+  "package_version": 2,
+  "version": "0.1.0",
+  "name": "cocos-e2e-framework",
+  "description": "i18n:cocos-e2e-framework.description",
+  "main": "./dist/main.js",
+  "author": "Cocos E2E Framework",
+  "editor": ">=3.8.0",
+  "contributions": {
+    "menu": [
+      {
+        "path": "i18n:menu.extension/Cocos E2E Framework",
+        "label": "i18n:cocos-e2e-framework.menu.init_framework",
+        "message": "init-framework"
+      },
+      {
+        "path": "i18n:menu.extension/Cocos E2E Framework",
+        "label": "i18n:cocos-e2e-framework.menu.create_case",
+        "message": "create-case"
+      },
+      {
+        "path": "i18n:menu.extension/Cocos E2E Framework",
+        "label": "i18n:cocos-e2e-framework.menu.refresh_case_index",
+        "message": "refresh-case-index"
+      },
+      {
+        "path": "i18n:menu.extension/Cocos E2E Framework",
+        "label": "i18n:cocos-e2e-framework.menu.check_setup",
+        "message": "check-setup"
+      }
+    ],
+    "messages": {
+      "init-framework": {
+        "methods": [
+          "initFramework"
+        ]
+      },
+      "create-case": {
+        "methods": [
+          "createCase"
+        ]
+      },
+      "refresh-case-index": {
+        "methods": [
+          "refreshCaseIndex"
+        ]
+      },
+      "check-setup": {
+        "methods": [
+          "checkSetup"
+        ]
+      }
+    }
+  }
+}
