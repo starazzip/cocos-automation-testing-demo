@@ -170,9 +170,29 @@ git switch demo-without-e2e
 Extension > Cocos E2E Framework > 初始化 Framework
 ```
 
-5. 新增或搬入 demo 測項。
+5. 設定 demo adapter：
 
-6. 對照 `main` 查看完成狀態。
+```js
+// frontend/tools/e2e/project-environment-adapters.mjs
+import { createFrontendOnlyAdapter } from './environment-adapters.mjs';
+
+export function createProjectEnvironmentAdapters() {
+    return {
+        'frontend-only': createFrontendOnlyAdapter({
+            previewUrlParams: {
+                slotFixture: 'frontend-only',
+            },
+        }),
+    };
+}
+```
+
+`slotFixture=frontend-only` 會讓 slot demo 使用前端 fixture，不連 `ws://127.0.0.1:8080/ws`。
+若要跑本 demo 的後端測項，需再加入 `main` 中的 `demo-backend` adapter。
+
+6. 新增或搬入 demo 測項。
+
+7. 對照 `main` 查看完成狀態。
 
 ## 站點與 Port
 
